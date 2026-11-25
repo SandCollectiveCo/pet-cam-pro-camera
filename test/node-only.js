@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { APP_VERSION, PAGE, PAGE_NAME, PAGE_ORIGIN, PAGE_PATH, RELEASE } from '../src/config.js';
 import { b64url, fromB64url, textOf, utf8 } from '../src/crypto/bytes.js';
@@ -15,15 +15,44 @@ import { assert, suite, test, vectors } from './lib/harness.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Every file under a folder of this one, as paths from the folder's root. @param {string} folder @returns {string[]} */
-function filesUnder(folder) {
+/** Every file under a folder of this one (or of `base`), as paths from its root. @param {string} folder @param {string} [base] @returns {string[]} */
+function filesUnder(folder, base = root) {
     const out = [];
-    for (const name of readdirSync(path.join(root, folder)).sort()) {
+    for (const name of readdirSync(path.join(base, folder)).sort()) {
         const relative = `${folder}/${name}`;
-        if (statSync(path.join(root, relative)).isDirectory()) out.push(...filesUnder(relative));
+        if (statSync(path.join(base, relative)).isDirectory()) out.push(...filesUnder(relative, base));
         else out.push(relative);
     }
     return out;
+}
+
+/**
+ * The accounts build machines run as: GitHub's runners are `runner`, and
+ * the rest are other services' and cloud images' own. Nobody's name, and
+ * words these files may use (a test runner, Node).
+ */
+const SERVICE_ACCOUNTS = new Set(['runner', 'gitlab-runner', 'buildkite-agent', 'circleci', 'travis', 'jenkins', 'vsts', 'cloudtest', 'root', 'admin', 'ubuntu', 'ec2-user', 'vagrant', 'node', 'build', 'builder', 'user']);
+
+/**
+ * What a folder that names nobody can't hold, for the machine described:
+ * its account's name, unless that's a build machine's own; its home folder;
+ * and its name. Each of four characters or more.
+ * @param {{ username: string, homedir: string, hostname: string }} machine
+ */
+function marksOf(machine) {
+    const user = SERVICE_ACCOUNTS.has(machine.username.toLowerCase()) ? '' : machine.username;
+    return [user, machine.homedir, machine.hostname.replace(/\.local$/, '')].filter((mark) => mark.length >= 4);
+}
+
+/** The files of a folder that's to be a public repository's (this one, or `base`) that hold any of `marks`, in any case. @param {string[]} marks @param {string} [base] */
+function filesNaming(marks, base = root) {
+    // The public repository's own files are repository/ here, and release/ and .github/ there.
+    const folders = ['src', 'dev', 'test', 'tools', 'vectors', 'repository', 'release', '.github'].filter((folder) => existsSync(path.join(base, folder)));
+    const files = [...folders.flatMap((folder) => filesUnder(folder, base)), ...['package.json'].filter((name) => existsSync(path.join(base, name))), ...readdirSync(base).filter((name) => name.endsWith('.md'))];
+    return files.filter((file) => {
+        const text = readFileSync(path.join(base, file), 'utf8').toLowerCase();
+        return marks.some((mark) => text.includes(mark.toLowerCase()));
+    });
 }
 
 suite('this folder');
@@ -55,17 +84,42 @@ test('names no machine and nobody who built it', () => {
     // The folder is to stand in a public repository of its own. Whoever runs
     // this is the check: their account's name, their home folder and their
     // machine's name are in none of its files.
-    const user = os.userInfo().username;
-    const host = os.hostname().replace(/\.local$/, '');
-    const marks = [user, os.homedir(), host].filter((mark) => mark.length >= 4);
-    const found = [];
-    // The public repository's own files are repository/ here, and release/ and .github/ there.
-    const folders = ['src', 'dev', 'test', 'tools', 'vectors', 'repository', 'release', '.github'].filter((folder) => existsSync(path.join(root, folder)));
-    for (const file of [...folders.flatMap((folder) => filesUnder(folder)), 'package.json', ...readdirSync(root).filter((name) => name.endsWith('.md'))]) {
-        const text = readFileSync(path.join(root, file), 'utf8').toLowerCase();
-        for (const mark of marks) if (text.includes(mark.toLowerCase())) found.push(file);
+    assert.equal(filesNaming(marksOf({ username: os.userInfo().username, homedir: os.homedir(), hostname: os.hostname() })), []);
+});
+
+// A GitHub-hosted runner, as the public repository's workflow runs on one:
+// the account `runner`, its home folder, and a machine name of GitHub's.
+// The last two are written in pieces, since this file is one the check reads.
+const RUNNER = { username: 'runner', homedir: ['', 'home', 'runner'].join('/'), hostname: ['runnervm', '8qn3k'].join('') };
+
+test('and holds where the public repository runs it, on GitHub’s runners', () => {
+    // The repository's first publish stopped here, on test/all.js and
+    // test/lib/harness.js, which say "runner" for what runs the tests. A
+    // build machine's account is nobody's name, so it isn't looked for; its
+    // home folder and its name are.
+    assert.equal(marksOf(RUNNER), [RUNNER.homedir, RUNNER.hostname]);
+    assert.equal(filesNaming(marksOf(RUNNER)), []);
+});
+
+test("and still finds a person's name, a home folder or a machine's name, in any file it looks at", () => {
+    const folder = mkdtempSync(path.join(os.tmpdir(), 'petcam-web-camera-test-'));
+    try {
+        const write = (file, text) => {
+            mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
+            writeFileSync(path.join(folder, file), text);
+        };
+        write('src/harness.js', '// A small test runner.\n');
+        write('test/out.js', `const out = '${RUNNER.homedir}/work/out';\n`);
+        write('tools/built.mjs', `// Built on ${RUNNER.hostname}.\n`);
+        write('.github/workflows/by.yml', '# By JAppleseed.\n');
+        write('README.md', 'Made on Johnny-Appleseeds-MacBook.\n');
+        assert.equal(filesNaming(marksOf(RUNNER), folder), ['test/out.js', 'tools/built.mjs'], "a runner's home folder and name, never the word");
+        const person = { username: 'jappleseed', homedir: '/Users/jappleseed', hostname: 'Johnny-Appleseeds-MacBook.local' };
+        assert.equal(marksOf(person), ['jappleseed', '/Users/jappleseed', 'Johnny-Appleseeds-MacBook']);
+        assert.equal(filesNaming(marksOf(person), folder), ['.github/workflows/by.yml', 'README.md'], 'a person’s account and machine, in any case');
+    } finally {
+        rmSync(folder, { recursive: true, force: true });
     }
-    assert.equal(found, []);
 });
 
 suite('a release');
