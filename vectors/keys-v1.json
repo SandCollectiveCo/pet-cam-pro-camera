@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "about": [
+    "Everything that comes straight from a household's keys: docs/API.md (Identity model, Keys). A household has one 32-byte secret per key epoch; each key below is HKDF of one epoch's secret.",
+    "Bytes are base64url without padding unless a field says hex or base64; strings are UTF-8; \"|\" joins the parts of a message, with nothing around it.",
+    "HKDF is HKDF-SHA256 with salt \"petcam\" and 32 bytes out; HMAC is HMAC-SHA256; AES-GCM is AES-256-GCM with a 12-byte nonce and a 16-byte tag.",
+    "Made by server/scripts/vectors.mjs from fixed keys that were made up for these files; nothing here was ever a real home's. No vector is ever removed: a format the apps stop opening stays, as one that must fail. Read by SharedTests/KeyVectorTests.swift and server/test/vectors.test.ts."
+  ],
+  "household_id": "11111111-2222-4333-8444-555555555555",
+  "how": {
+    "key": "HKDF-SHA256(the epoch's secret, salt \"petcam\", info the key's name, 32 bytes)",
+    "join_token": "base64url of the petcam.join.v1 key: the only derivative the server ever sees, and only the current epoch's",
+    "join_token_hash": "base64url(SHA-256(UTF-8 of the join token's text)): what the server keeps",
+    "from_before": "petcam.media.v1 (unbound media, until 2026-11-03) and petcam.invite.nonce.v1 (a member nonce that left the key out, until 2026-11-10) are keys the apps no longer use: sealed-v1.json and invite-v1.json have what they made, as failures"
+  },
+  "epochs": [
+    {
+      "epoch": 0,
+      "secret": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+      "keys": {
+        "petcam.join.v1": "O3JAG8DDHhzXqG7OUCzk7zBTwAjdY6L0KNZ1_WdcyZQ",
+        "petcam.media.v2": "AloSfBGdOWUpl7v2u7VvYQ-mNg6tRR_tkCNttPAQ3Yk",
+        "petcam.signal.v1": "xJcFBU5-qj5OI28dCi_qdEYYB5BqkXPKYLOa2eOtdhE",
+        "petcam.box.v1": "Xxk1AHlFtdpDKL3gs_g9xKvUcQQpxsg1blsAvJhCxPQ",
+        "petcam.attest.v1": "0GiDpzQw84u8x5B5igR7IYN4xglvqXBcpTXFHuGwMls",
+        "petcam.chain.v1": "iRwBm6VlVTiKhbi3kpso1_63RuuwvX8UjMeTm39PJOc",
+        "petcam.invite.nonce.v2": "iyq2fBeORRnawbfr97yQXzkZ1CiRZmwOZslXP4XrMmI",
+        "petcam.signin.nonce.v2": "KwrCwFSTIF1wZIampJZvHE89f2XEL_kIQS0x6gssOpM",
+        "petcam.media.v1": "bi1nM5C98szIJL3rGfmOzRZFnDoadif_YY9XVpC06as",
+        "petcam.invite.nonce.v1": "KvylMYcKgjksutT_ppAWhnuU0wDH-BaJopnpNUF0L9M"
+      },
+      "join_token": "O3JAG8DDHhzXqG7OUCzk7zBTwAjdY6L0KNZ1_WdcyZQ",
+      "join_token_hash": "cSI-E9U04isbFvQ4j-a7R1L8NpmJeZ1Wgdyzl1JkkQY"
+    },
+    {
+      "epoch": 1,
+      "secret": "ERERERERERERERERERERERERERERERERERERERERERE",
+      "keys": {
+        "petcam.join.v1": "AtsjAQ1QYlti6vW6d1m5KllT0dV60nSsGrvleWTYY2A",
+        "petcam.media.v2": "fNDUsleD4mmwZtLaDD6lhohrp9OXaNYgVXHJ1PfD6A8",
+        "petcam.signal.v1": "xYTYXynyAgt3RiAF0mfnoq5f2LlA_xQyfSIDx4X0Cyg",
+        "petcam.box.v1": "fmXtejf_k9QEK1V1ONjPwOiasWa4NTKE_F4d-uDosPo",
+        "petcam.attest.v1": "VuyUocQ7-BvH8ghjupAEICXVLKe97uD9sOkajA3woAI",
+        "petcam.chain.v1": "QShuACqrJqad9NNqYTkdPVspfHCbQeP0vewz5bZReU0",
+        "petcam.invite.nonce.v2": "46BW7MFCHhgxuYLJM7rYAmGtG1kDqPzZp0yyWCNcg-c",
+        "petcam.signin.nonce.v2": "UQCqoGPgoA52xLIbv3vLdt8gsw5wXsi_IGpIDutykFQ",
+        "petcam.media.v1": "h7OwHFvfGK9PRp_D0d6W3Ihej9KWqbIcCatzHw29VC8",
+        "petcam.invite.nonce.v1": "0qFRT3JSSiIBKRsOhbhwu-riZLr2QwiZRFvglQ_24sU"
+      },
+      "join_token": "AtsjAQ1QYlti6vW6d1m5KllT0dV60nSsGrvleWTYY2A",
+      "join_token_hash": "sXLBz_mI3b_Z_JGo4Smrr0KkLQHyBxBUBqpZQfXTCy0"
+    },
+    {
+      "epoch": 2,
+      "secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "keys": {
+        "petcam.join.v1": "mBb_Q-zrBXuE5yMG69PG_1yu5GsC-ayzNW_SAI3pYFc",
+        "petcam.media.v2": "VciWZR_ZZjSWoi8pm3gHezwABBItawlE54Td-hmtBn8",
+        "petcam.signal.v1": "RfqA9bmMyTn3U-PNHuiV1nnyQ7WmsbYcgnLBOlJS6_Y",
+        "petcam.box.v1": "lvxAO9VtEEFgwYgCK2MVTdRl--ccKAcVXvqhH9fqbE8",
+        "petcam.attest.v1": "9bqXs7I7Lc6vpAMl_YlfdsZosBGvcxT0qenqbpvmbDU",
+        "petcam.chain.v1": "92SUkZ0YiR4z_qAES-oyh04ifhoBLvUuJhxSU6Q1CIo",
+        "petcam.invite.nonce.v2": "JnUOvfdpCMzjJ7CCMkVSsR5FBveogfnpzL-Utatg5Rg",
+        "petcam.signin.nonce.v2": "iSIwi5VyTr6AHNWgOqJyr25LuIwUk_zxKXOfP94aIxw",
+        "petcam.media.v1": "9yl_QXeDvP9kIFznFQqrHFYfjLIaBwwPUsNw8AYJ74g",
+        "petcam.invite.nonce.v1": "9ox71YfSzm-487Vbg30XNSG31hpGu1pDAwNgDsfhnmw"
+      },
+      "join_token": "mBb_Q-zrBXuE5yMG69PG_1yu5GsC-ayzNW_SAI3pYFc",
+      "join_token_hash": "Eim5p7w44cKQ-nvF7ykLNZW9sBvlvCGA4KK9L52zaoE"
+    }
+  ],
+  "attestations": {
+    "how": "base64url(HMAC(the epoch's petcam.attest.v1 key, \"petcam.device-key.v1|\" + device_id + \"|\" + public_key)); public_key is the device's own, X9.63 uncompressed, base64url",
+    "cases": [
+      {
+        "epoch": 1,
+        "device_id": "d0000000-0000-4000-8000-00000000000d",
+        "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+        "attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc"
+      },
+      {
+        "epoch": 0,
+        "device_id": "d0000000-0000-4000-8000-00000000000d",
+        "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+        "attestation": "RLAqyjJYKP4Fx7LuGUKA7sQBAD2geYQDtlAn-42PMP0"
+      },
+      {
+        "epoch": 2,
+        "device_id": "90000000-0000-4000-8000-000000000009",
+        "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+        "attestation": "EKB3stEDsHSDCaJPONCTHrBCRyYo81P5XqQ-jV4nxMI"
+      },
+      {
+        "epoch": 1,
+        "device_id": "c0000000-0000-4000-8000-00000000000c",
+        "public_key": "BF4LiJVUeHUvILUshvfPdqai9l41ApOwm1vEiv4S722IiPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik",
+        "attestation": "CR6wpnNp_2gOzBGWpdVyWbijyCqMNyka733OoeaAMQI"
+      }
+    ],
+    "must_fail": [
+      {
+        "epoch": 1,
+        "device_id": "e0000000-0000-4000-8000-00000000000e",
+        "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+        "attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+        "why": "another device's id"
+      },
+      {
+        "epoch": 1,
+        "device_id": "d0000000-0000-4000-8000-00000000000d",
+        "public_key": "BF4LiJVUeHUvILUshvfPdqai9l41ApOwm1vEiv4S722IiPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik",
+        "attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+        "why": "another key"
+      },
+      {
+        "epoch": 2,
+        "device_id": "d0000000-0000-4000-8000-00000000000d",
+        "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+        "attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+        "why": "an older epoch's word, checked under a newer one"
+      },
+      {
+        "epoch": 0,
+        "device_id": "d0000000-0000-4000-8000-00000000000d",
+        "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+        "attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+        "why": "a newer epoch's word, checked under an older one"
+      },
+      {
+        "epoch": 1,
+        "device_id": "d0000000-0000-4000-8000-00000000000d",
+        "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+        "attestation": null,
+        "why": "none at all"
+      }
+    ]
+  },
+  "chain_proofs": {
+    "how": "HMAC(epoch n − 1's petcam.chain.v1 key, UTF-8 of \"petcam.chain.v1|\" + household_id + \"|\" + n + \"|\" followed by the 32 raw bytes of SHA-256(epoch n's secret)). Epoch 0 has none. A keyring carries it as standard base64 (proof_base64).",
+    "cases": [
+      {
+        "epoch": 1,
+        "message_starts": "petcam.chain.v1|11111111-2222-4333-8444-555555555555|1|",
+        "secret_sha256_hex": "02d449a31fbb267c8f352e9968a79e3e5fc95c1bbeaa502fd6454ebde5a4bedc",
+        "proof": "iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0",
+        "proof_base64": "iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0="
+      },
+      {
+        "epoch": 2,
+        "message_starts": "petcam.chain.v1|11111111-2222-4333-8444-555555555555|2|",
+        "secret_sha256_hex": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+        "proof": "d702B6H7Xb-SGqjUR9w1xWJ_ME2L4ZWa9m46OXNWWRo",
+        "proof_base64": "d702B6H7Xb+SGqjUR9w1xWJ/ME2L4ZWa9m46OXNWWRo="
+      }
+    ],
+    "must_fail": [
+      {
+        "epoch": 1,
+        "secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+        "proof": "iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0",
+        "why": "epoch 1's proof, for another secret"
+      },
+      {
+        "epoch": 2,
+        "secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+        "proof": "iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0",
+        "why": "epoch 1's proof, offered for epoch 2"
+      },
+      {
+        "epoch": 1,
+        "secret": "ERERERERERERERERERERERERERERERERERERERERERE",
+        "proof": "dkoUIl1myGDLqRY7jE-iTXhwg95AoGzXsONbb7ZjLbE",
+        "why": "made with another epoch 0 than this home's: someone else's chain under this home's id"
+      },
+      {
+        "epoch": 1,
+        "secret": "ERERERERERERERERERERERERERERERERERERERERERE",
+        "proof": "DZ-f_ORzDgRSueuDjkEjtBA7yTaqsPwuMxi5KXkaJEI",
+        "why": "made for another household's id"
+      }
+    ]
+  },
+  "member_nonces": {
+    "invite": {
+      "how": "base64url(HMAC(the current epoch's petcam.invite.nonce.v2 key, invite_id|device_id|public_key|nonce_commitment))",
+      "request": {
+        "invite_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "device_id": "a0000000-0000-4000-8000-000000000001",
+        "public_key": "BMDdTHVbg2-Jywq4gaOrx2W7uo6U5aqYI1GV9aZLgYV4rU_4ielBTsaOTjqH2AXLN2_GzDYBLwPiuRiFCxJWaNM",
+        "nonce_commitment": "cs1uhCLEB_ttCYaQ8RMLfe1-wvf14dML2dUh8BU2N5M"
+      },
+      "cases": [
+        {
+          "holder_epoch": 0,
+          "member_nonce": "PbfPidTTR3IX_uYGDL4d-k6HrsGholHQUpWa4RIXaxo"
+        },
+        {
+          "holder_epoch": 1,
+          "member_nonce": "dHTOPNRZhi8Vs3BGty1R8AZQVS1mAnUckOElbjrsLc4"
+        }
+      ],
+      "from_before": {
+        "how": "base64url(HMAC(the current epoch's petcam.invite.nonce.v1 key, invite_id|device_id|nonce_commitment)): what a link's maker on 1.0 answered with. No app makes it now, and none shows a code for it (invite-v1.json).",
+        "holder_epoch": 0,
+        "member_nonce": "hvVl3tvG7-54T5nP5FpnXjcPwXZZa36sQ97LqSvUMs0"
+      }
+    },
+    "sign_in": {
+      "how": "HMAC(the current epoch's petcam.signin.nonce.v2 key, household_id|device_id|public_key|nonce_commitment|salt), 32 bytes; the salt is 32 random bytes the answering member draws, written here as base64url, which is also how it goes into the message",
+      "request": {
+        "device_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "public_key": "BFkat3HrvP1tnLkJTRBlKK3Rpp1EwsH2J_CJ7Fi5xhrfn05qvw0EXAxpOjxorXyXynK-ZN70om_s0mPdmKkngPA",
+        "nonce_commitment": "jAzBegSULMT44P4LMCYG0xCIYMEmQouizutfntQcKwU",
+        "salt": "CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo"
+      },
+      "cases": [
+        {
+          "holder_epoch": 0,
+          "member_nonce": "Jt0DtvbenWg44LocAOugR40DA1kN9fNJcIGK6vHb4Cg"
+        },
+        {
+          "holder_epoch": 1,
+          "member_nonce": "OqVrdPP9leN9WI8cbrn1zhey8LKlG6dU9_x63u2x0iM"
+        }
+      ]
+    }
+  }
+}

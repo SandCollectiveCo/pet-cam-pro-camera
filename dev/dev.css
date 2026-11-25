@@ -1,0 +1,15 @@
+/* For the pages in dev/ only: none of this is in a release. */
+html { background: #111; color: #ddd; font: 14px/1.4 system-ui, sans-serif; }
+body { margin: 0; padding: 18px 22px; max-width: 900px; }
+h1 { font-size: 18px; margin: 0 0 8px; color: #fff; }
+p { margin: 6px 0; }
+pre { white-space: pre-wrap; word-break: break-word; font: 12px/1.45 ui-monospace, Menlo, monospace; color: #bbb; }
+.ok { color: #7c7; }
+.bad { color: #f77; }
+canvas, video { max-width: 320px; background: #000; border-radius: 6px; }
+
+/* The camera's own look at its picture, in a test page. */
+video.monitor { width: 160px; }
+
+/* What a stand-in viewer received, decoded and never shown at size. */
+.received { width: 80px; opacity: 0.4; }

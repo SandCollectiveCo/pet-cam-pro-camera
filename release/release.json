@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "list": "{\"v\":1,\"page\":\"https://camera.petcampro.com/\",\"release\":1,\"entry\":\"index.html\",\"files\":[{\"path\":\"camera.8be84cb841aa0968.js\",\"sha256\":\"8be84cb841aa096847546a6576e0de309b5073d7a7ca2a0d15885540998d677c\",\"bytes\":331028},{\"path\":\"camera.faee0f61978ed9bf.css\",\"sha256\":\"faee0f61978ed9bf6d0ed62462bdabd8a426e6a0ffed7c2728c6bc14102a96fb\",\"bytes\":6126},{\"path\":\"index.html\",\"sha256\":\"b1c631a531b7747d46bc41b1d8bf17c17632a7ddff2143a630f0a0c41c4b7e5a\",\"bytes\":1110}]}",
+  "signatures": [
+    {
+      "key": "BNoUtW69R7GodWHc-EnKrYw0LtHlgqvV13eMVJao9jpsEMrVH7wB2aryjqkEu-LhTBhuJF6Ix-GTBL1QFtapvMk",
+      "sig": "rOUuw2AS1W7tyTQN0-_8Rhz8KbYT5cnZ1cX75G-pZ9yatevqTklvYxZD9bjyAoAMH8QyrDb-BV8XWV0lN1aaOg"
+    }
+  ]
+}

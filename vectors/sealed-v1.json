@@ -1,0 +1,1548 @@
+{
+  "version": 1,
+  "about": [
+    "Sealed messages, sealed media, the peek frame, signed SDP, and which keys an event can trust: docs/API.md (Sealed messages, Realtime, Events).",
+    "A message is {\"sealed\": base64url(0x04 || epoch (u32, big-endian) || nonce(12) || ciphertext || tag(16))}: AES-GCM under the epoch's petcam.box.v1 key over the message's JSON, with `context` as associated data. 0x02 || nonce || ciphertext || tag, with no epoch, is epoch 0.",
+    "Media is 0x05 || epoch (u32, big-endian) || nonce(12) || ciphertext || tag(16): AES-GCM under the epoch's petcam.media.v2 key, with `context` as associated data. 0x03 (the same layout) and 0x01 (no epoch) under petcam.media.v1 with no associated data are from before 2026-11-03, and no longer open.",
+    "Sealing draws a random nonce; the ones here are fixed (cast.mjs derives each from its vector's name), so an implementation that seals `plaintext` for `context` with `nonce` gets `sealed` byte for byte. JSON is compared as values, never as text: key order and how a number is written may differ.",
+    "`expect` is \"opens\", or how it fails: \"refused\" (it doesn't authenticate, or is too short to), \"unknown_version\" (not a format the apps open), \"stale_keys\" (an older epoch, where only the current one counts), \"newer_keys\" (an epoch past the newest held: catch up on the home's keys, then try again), \"unknown_keys\" (an epoch never held, or not the one its event names).",
+    "`worker_takes` says what the server's shape check makes of it (docs/API.md: base64url, version byte, length). It can't open anything, so everything sealed passes unless it says false, altered or not; `not_sealed` is what it must refuse.",
+    "Bytes are base64url without padding unless a field says hex or base64; strings are UTF-8; \"|\" joins the parts of a message, with nothing around it.",
+    "HKDF is HKDF-SHA256 with salt \"petcam\" and 32 bytes out; HMAC is HMAC-SHA256; AES-GCM is AES-256-GCM with a 12-byte nonce and a 16-byte tag.",
+    "Made by server/scripts/vectors.mjs from fixed keys that were made up for these files; nothing here was ever a real home's. No vector is ever removed: a format the apps stop opening stays, as one that must fail. Read by SharedTests/SealedVectorTests.swift and server/test/vectors.test.ts."
+  ],
+  "household_id": "11111111-2222-4333-8444-555555555555",
+  "epochs": {
+    "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+    "1": "ERERERERERERERERERERERERERERERERERERERERERE",
+    "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+  },
+  "holders": {
+    "how": "Which epochs each device here holds, and when it took each (ms, by its own clock). Its current epoch is its newest.",
+    "at_0": {
+      "epochs": [
+        0
+      ],
+      "taken_at": {
+        "0": 1767139200000
+      }
+    },
+    "at_1": {
+      "epochs": [
+        0,
+        1
+      ],
+      "taken_at": {
+        "0": 1767139200000,
+        "1": 1767222000000
+      }
+    },
+    "at_2": {
+      "epochs": [
+        0,
+        1,
+        2
+      ],
+      "taken_at": {
+        "0": 1767139200000,
+        "1": 1767222000000,
+        "2": 1767225540000
+      }
+    },
+    "only_1": {
+      "epochs": [
+        1
+      ],
+      "taken_at": {
+        "1": 1767222000000
+      }
+    },
+    "no_times": {
+      "epochs": [
+        0,
+        1
+      ],
+      "taken_at": {}
+    }
+  },
+  "ids": {
+    "camera": "c0000000-0000-4000-8000-00000000000c",
+    "viewer": "d0000000-0000-4000-8000-00000000000d",
+    "other_device": "e0000000-0000-4000-8000-00000000000e",
+    "event": "f0000000-0000-4000-8000-00000000000f",
+    "other_event": "f1000000-0000-4000-8000-0000000000f1",
+    "session": "5e550000-0000-4000-8000-000000000005",
+    "invite": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+  },
+  "contexts": {
+    "how": "The associated data of each kind of sealed thing: UTF-8, never sent.",
+    "signal": "petcam.signal.v1|<from id>|<to id>|<session>",
+    "command": "petcam.command.v1|<from id>|<camera id>",
+    "status": "petcam.status.v1|<camera id>",
+    "event": "petcam.event.v1|<camera id>|<event id>|<started_at>",
+    "device_name": "petcam.name.v1|<device id>",
+    "home_name": "petcam.home.v1|<household id>",
+    "alert_prefs": "petcam.alerts.v1|<device id>",
+    "invite": "petcam.invite.v1|<invite id>",
+    "account": "petcam.account.v1|<device id>",
+    "person": "petcam.person.v1|<device id>",
+    "snapshot": "petcam.media.v2|<camera id>|<event id>|snapshot",
+    "clip": "petcam.media.v2|<camera id>|<event id>|clip",
+    "peek": "petcam.peek.v1|<camera id>"
+  },
+  "messages": {
+    "signal": {
+      "what": "A signal's payload, from the viewer to the camera for one session",
+      "context": "petcam.signal.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c|5e550000-0000-4000-8000-000000000005",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "EHCm1NwCZ8Yz6J4W",
+      "plaintext": "{\"kind\":\"watch\",\"audio\":true,\"quality\":\"auto\",\"sent_at\":1767225600000}",
+      "sealed": "BAAAAAEQcKbU3AJnxjPonhZwMP9s2XLbullWyDfudm1ZnfQt6EPB36p6xs3bs4EZpn4o3D9ISgY-b5mQ4ocM8A3x-Z55UHqBt0HxpiyWUffbMDzS4X5r1Az95tKrGEGqtR42qZ3YBg"
+    },
+    "command": {
+      "what": "A command, from the viewer to the camera",
+      "context": "petcam.command.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "ML_SCQFxO5AIXg03",
+      "plaintext": "{\"command\":{\"name\":\"night_light\",\"on\":true,\"value\":0.6},\"sent_at\":1767225600000,\"id\":\"0c0c0c0c-0000-4000-8000-00000000c001\"}",
+      "sealed": "BAAAAAEwv9IJAXE7kAheDTddjmIwjLmN2GPXjUwdzE0kHY8nbpSvmHnzrAwYx3gTiF3AXqY6eMgxb23Omj0b9hS4GBUVpS2pjYxv0R_FqZIIxMrG20JH-9-T8zF5nQ_nJ-51cVhD_sRkkW6uD2U0GF1Se_XOfA8cPHARFSHvfHnmKZU3_hi88Qi7qX4Yn8kbRGKKg-osi9tlpII9SQ"
+    },
+    "status": {
+      "what": "A camera's status",
+      "context": "petcam.status.v1|c0000000-0000-4000-8000-00000000000c",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "2sIpgRI7nD6OxBVf",
+      "plaintext": "{\"battery\":0.82,\"charging\":true,\"thermal\":\"nominal\",\"armed\":true,\"night_light\":false,\"viewers\":1,\"quality\":\"auto\",\"sound_level_db\":-48.5,\"last_event_at\":1767225540000,\"camera_position\":\"back\",\"zoom\":1,\"zoom_range\":{\"min\":0.5,\"max\":9,\"lenses\":[0.5,1,2,3]},\"app_version\":\"1.0.2 (27)\",\"orientation\":\"auto\",\"sent_at\":1767225600000}",
+      "sealed": "BAAAAAHawimBEjucPo7EFV8loUZ7iI8nkE2oT0lgJSCRp3b85NUxHGq8omuAPMwCHS6Hntdon4MMQ0Aw5-zwrlgGRmfggZGOTzXS5K19wev2JmGwfRifTWiQGwdtVMY_WYItDB15QAMC-30dpQcqv5y_l0DnrSTUtMOsgSCRAyh2gT-rr9o66rzmm89kfh0gkNQ-Cp4cjAgpbQrpQFvd60vT46cr-gvunW1VNs5a3c7rdZtiAyn1hDmbhIbo673ILSdEsPohzA_CfnC4Gl_Uw8e2pQT8wLcvmRjXOQndngVXNdxshQQsT_QMor_SVs9j63UHdwL2F4iP6_y7v1LF7KnEG1Hvfg7TSIMPGd0Y94I7483vQeaKB4rZPjUbarjV8WSc74rnoO3V1oNp-zOPcE_NaThNSzIlPoZdM8wmm3nGzJ60R8uWgnbfZeT1cN8HNay6my6l0TMgcyGJSdtUMVgriC7wjDlL"
+    },
+    "event_details": {
+      "what": "An event's details",
+      "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+      "version": 4,
+      "epoch": 1,
+      "only_current": false,
+      "nonce": "71HzRFrMaeS8GhWJ",
+      "plaintext": "{\"kind\":\"sound\",\"label\":\"bark\",\"score\":0.91,\"level_db\":-21.5,\"bound_media\":true,\"media_epoch\":1}",
+      "sealed": "BAAAAAHvUfNEWsxp5LwaFYk4q1dVA4mnAXI2xssyXqpc8Mv_8Ac23FvZrCu9SYrPyZH_L1TuQIaOBRxIW-4zHqe9Z3qwBaU1vmXth3crhMal0ADamWfJLtwpBSVvLcJdufwo4j_SHiOALwnsZibDEeg-oXTKFoynrQT0CnwGQOX9"
+    },
+    "device_name": {
+      "what": "A device's name",
+      "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "jhpaDT07mLXFljVP",
+      "plaintext": "{\"name\":\"Kitchen iPad\"}",
+      "sealed": "BAAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw"
+    },
+    "home_name": {
+      "what": "The home's name",
+      "context": "petcam.home.v1|11111111-2222-4333-8444-555555555555",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "o5xqhslSz3PxwFfh",
+      "plaintext": "{\"name\":\"Riverside\"}",
+      "sealed": "BAAAAAGjnGqGyVLPc_HAV-GnmN4Bdew-l4lAkfKJeFsEhEH7WnUVGk3x7ZNM4ieXwYfLke8"
+    },
+    "alert_prefs": {
+      "what": "A device's alert prefs",
+      "context": "petcam.alerts.v1|d0000000-0000-4000-8000-00000000000d",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "7hJ1W3p1Ru7rhop7",
+      "plaintext": "{\"notify_motion\":true,\"notify_sound\":false,\"notify_alarm\":true}",
+      "sealed": "BAAAAAHuEnVbenVG7uuGinu2v-SH4sJSOxqevuCkksmWevvalrXcWfD5cQgW3hxqGua5loPGFbhRriYiYb5qP04SoxJwT5jJvwbS4MP8HerMcExWjF-AuJ9fZxxsmn08"
+    },
+    "invite_token": {
+      "what": "An invite's token, sealed for the household",
+      "context": "petcam.invite.v1|aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "xLKE9nZSrdroSCaL",
+      "plaintext": "{\"token\":\"CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk\",\"expires_at\":1767312000000}",
+      "sealed": "BAAAAAHEsoT2dlKt2uhIJouma8WUlI6uwADR3JJFXG9R2xz5IUT0UZVzmnHlhApSe1C1jYeDKsgkF6uNQAUYQW2XePJ_3VzOaND7c3JdnO2KpC5jVhgXvST2sC6QUsXLcNdYcR_Cm4yAZMH3tiXlAuU6jw"
+    },
+    "account": {
+      "what": "A device's word for its account",
+      "context": "petcam.account.v1|d0000000-0000-4000-8000-00000000000d",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "pv6XNEdBieFdmaTs",
+      "plaintext": "{\"sub\":\"000123.0123456789abcdef0123456789abcdef.0123\",\"account_id\":\"4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07\",\"keys\":[\"google:72fcb2e8fe7390bd3522fff3c739ecbdd7a61fd6cfcb4e07be610bd14f9cb398\"]}",
+      "sealed": "BAAAAAGm_pc0R0GJ4V2ZpOwjPsqtdSxiGEYnlSQK0v3Aahf-si4LdZ56hdt_YHF2Z2yaHVAoeJc8hA8sI6B3tuwzIumcvLSkoo2SE_CVZDvMpybxr9DhnH4HlQR0pHFSi8fVTs74Aknb8A7WszYrKbplq28oS5-uJAEmlh4dN2KXIwueupvuk8pMuAzVqCIeg0md8rGoj67KElkyfDZRVw4Ehmasc2OUhC6qLrvVO_5MZ2D9XwUGED_Ttdg2brCDWvs9wtODvGib9zAtQeSIYwdBUi-h7L5T-HujDAVY"
+    },
+    "person": {
+      "what": "The name of the person signed in on a device",
+      "context": "petcam.person.v1|d0000000-0000-4000-8000-00000000000d",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "Y-Y6DSuJZ-OLJTqt",
+      "plaintext": "{\"name\":\"Sam Rivera\"}",
+      "sealed": "BAAAAAFj5joNK4ln44slOq1fuAWYg6oqDFB8nqTcmmwz7AA6_p-Fpf22G6gHnjCKFTpECUZF"
+    },
+    "device_name_not_ascii": {
+      "what": "A name that takes more than one byte a character",
+      "context": "petcam.name.v1|d0000000-0000-4000-8000-00000000000d",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "TGsHwYm7Md1XiKxL",
+      "plaintext": "{\"name\":\"Küche 🐶\"}",
+      "sealed": "BAAAAAFMawfBibsx3VeIrEvxCHT20FalVsp9G0C0JvFhApROymSnDQ9UsEfU-eiXOLT_C88_mg"
+    },
+    "alert_prefs_empty": {
+      "what": "The shortest message: {}",
+      "context": "petcam.alerts.v1|e0000000-0000-4000-8000-00000000000e",
+      "version": 4,
+      "epoch": 1,
+      "only_current": true,
+      "nonce": "7QF4eCeTiUg1Iddy",
+      "plaintext": "{}",
+      "sealed": "BAAAAAHtAXh4J5OJSDUh13KiEvafEC_vMEY3yb05_Iad-a4"
+    },
+    "device_name_epoch_0": {
+      "what": "A device's name under the epoch before",
+      "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+      "version": 4,
+      "epoch": 0,
+      "only_current": true,
+      "nonce": "L2yADxYQ0llhLaMN",
+      "plaintext": "{\"name\":\"Hall iPad\"}",
+      "sealed": "BAAAAAAvbIAPFhDSWWEtow36CjgmkGCGeVCbn-eyTEyTxYvvFXH7PMKwVr45ifG85DFBeY8"
+    },
+    "device_name_v02": {
+      "what": "A device's name as builds from before keys could change sealed it: 0x02, no epoch (epoch 0)",
+      "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+      "version": 2,
+      "epoch": 0,
+      "only_current": true,
+      "nonce": "ie8lWf4OlEFuXKpn",
+      "plaintext": "{\"name\":\"Hall iPad\"}",
+      "sealed": "AonvJVn-DpRBblyqZxsyrsHyi-EcgmfN-SUTTDx8FtqUZSw_UssAu-8zseOpiUVZqw"
+    },
+    "command_epoch_0": {
+      "what": "A command under the epoch before: what a removed device that kept old keys could seal",
+      "context": "petcam.command.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c",
+      "version": 4,
+      "epoch": 0,
+      "only_current": true,
+      "nonce": "tEv9sP3rByp0tzEw",
+      "plaintext": "{\"command\":{\"name\":\"night_light\",\"on\":true,\"value\":0.6},\"sent_at\":1767225600000,\"id\":\"0c0c0c0c-0000-4000-8000-00000000c001\"}",
+      "sealed": "BAAAAAC0S_2w_esHKnS3MTDEwz5H65YP1YeMkA-3K_6oQjE8NnZT44KvPWg3SHlpYjkC2f6FfokfZBIsxKIub3Le6XfHMu-jW_meoRnC82_T9fnd-lJbdQxjL8RJH3UyGATvbvfjeFNaKskRn9AMG7V0MXu6NJ4DdFhVcWD6WgNFJoGAY-llsdDKRNpuvfi3_SOqpe6KueN1ZV5RRQ"
+    },
+    "event_details_epoch_0": {
+      "what": "An event's details under the epoch before",
+      "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+      "version": 4,
+      "epoch": 0,
+      "only_current": false,
+      "nonce": "_mSY6uNbZCug1Fm3",
+      "plaintext": "{\"kind\":\"motion\",\"label\":\"dog\",\"bound_media\":true,\"media_epoch\":0}",
+      "sealed": "BAAAAAD-ZJjq41tkK6DUWbfLPVyxP5gKVh6ZytlDy1Ujoe1SVnpxSXMkmoQfb7pV65Hu4AXDluaf1QHU14mO2Tu6gJB7hPjzC0XuJ_EaNPMBZI8kxktx2ObAqVACcv-ufR1R"
+    },
+    "event_details_v02": {
+      "what": "An event's details as 0x02",
+      "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+      "version": 2,
+      "epoch": 0,
+      "only_current": false,
+      "nonce": "Jy4Dfx8tArbNHt2X",
+      "plaintext": "{\"kind\":\"motion\",\"label\":\"cat\"}",
+      "sealed": "AicuA38fLQK2zR7dlyAI05gEw7C3yKPgPjEU9ISzJFjELJz5__3yAjX06wXfelbHflqb7RWgaClGmFt8"
+    },
+    "home_name_epoch_2": {
+      "what": "The home's name under a newer epoch",
+      "context": "petcam.home.v1|11111111-2222-4333-8444-555555555555",
+      "version": 4,
+      "epoch": 2,
+      "only_current": true,
+      "nonce": "9xPYRoOHxLEBll_8",
+      "plaintext": "{\"name\":\"Flat\"}",
+      "sealed": "BAAAAAL3E9hGg4fEsQGWX_w8oN1Wpz4ubUzKllrrDuQwCJf-F6kmTUNDWKOhx4WE"
+    },
+    "event_details_epoch_2": {
+      "what": "An event's details under a newer epoch",
+      "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+      "version": 4,
+      "epoch": 2,
+      "only_current": false,
+      "nonce": "Pv4eSlMQ7b31RjgG",
+      "plaintext": "{\"kind\":\"alarm\",\"label\":\"smoke_alarm\",\"bound_media\":true,\"media_epoch\":2}",
+      "sealed": "BAAAAAI-_h5KUxDtvfVGOAY02niR83bWOwGef4pLcaY2_6iDT0JMr8tDSE5BhYxvXWTAAaqxXnQ4KuELJTvJa2ibl9Cx2W94BZtWwG67pGOMKnKObgsvE6v9A2bLbEe5Mfwxg56dtAm-eQ"
+    }
+  },
+  "media": {
+    "snapshot": {
+      "what": "An event's snapshot",
+      "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+      "version": 5,
+      "epoch": 1,
+      "nonce": "nc0CLmm6rgrGoUaG",
+      "plaintext": "_9j_4AAQSkZJRgABAQAAAQABAAD_2wBDAAgGBgcGBQgHB__AAAsIAAgACAEBEQD_2gAIAQEAAD8A0s8g_9k",
+      "sealed": "BQAAAAGdzQIuabquCsahRoZt7RV7k2FX1SE7zIQLcCS4JTR47VSLGJOtdfYtPSyyVE-MG-P0_fi4eMNY-jiBw0WsaIncg4Ypz7NtEvH--PyRcY5vCV2-TK629xSt70E"
+    },
+    "clip": {
+      "what": "An event's clip",
+      "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|clip",
+      "version": 5,
+      "epoch": 1,
+      "nonce": "V1pvstfYtks44-UM",
+      "plaintext": "AAAAGGZ0eXBpc29tAAACAGlzb21tcDQxAAAACGZyZWUAAAAMbWRhdN6tvu8",
+      "sealed": "BQAAAAFXWm-y19i2Szjj5Qy5zQesfgGvCyF1AtxZz_2NiJzbHsmM3nfLlzZz39mWvXxWw976ey77HYfD2ahroKVzJM-1Xaz6wLwYrk0"
+    },
+    "peek": {
+      "what": "A camera's peek frame: peek_frame.packed inside",
+      "context": "petcam.peek.v1|c0000000-0000-4000-8000-00000000000c",
+      "version": 5,
+      "epoch": 1,
+      "nonce": "VdoM9m3yelyYjJa4",
+      "plaintext_is": "peek_frame, packed",
+      "plaintext_sha256_hex": "b32bc02d027ff193045fda4ef124f68d24abe6af05a44d97d80b907192ceb0cf",
+      "sealed": "BQAAAAFV2gz2bfJ6XJiMlrisVKjvxjHbsAjgUzIOvG6cAERwrUv9Cs5ID3U6NXsPwDkoo2eeDbretFQ9KNY3O32rdLVlkUrYIbdaf4m7l7lW6mDJBBKzU42X97DkKK6ptj6ZsleEvFtOQetA1vbKzJ0WG33DpFGWGoJ1wLcBUs_MlpyxTeM5v3zk6ILBu34I_N_sPsCMYpiTIK_aRd87-yyEfSPOfTaus01Gyt4BQx6WUO8IMLqj9xIfJo-1EdrRTn7wg7YLZ4YqlFn-CBx9xoxuhzhwlNxETVx6SpjWnWxbcxd8-mTX_vhNOHsPPmXEL9Yh-2_grBiTz1ZzoAnR-lbhaURj2wGKyq6IWSxDSkOqVS56sMRuvwH-fnvi8LbQ4-jt3COp9L1MTuWw4lYnl4a8f4kvlFRvTkwHn00qeevQD_Z8VTfAig4iZnhU2Gbcz3jPNOLRSaSl62VNFUi5lBa95iIsGKw4mmVyOCGsEq-UfQ3wvVICa3K3_raItCoxLCMGPxWM1sHx7lLH-mstgZG8dwcTzH1P9yvXyS6j2iBU9C4FPP5E_4fIejWkj1UQlHzXTqMOcZUvIEn1MzPmZnr2brBpAHH0Jx5ct1nC0iXj2W4T0gZPpG5WX0z1kJKIJi2G0bry772LDg8JwF9RlKhwW0dA6etNrMt3Z_gEtdfxydyMmMflsHwGEs_L1cZJrZLwjostuoCSaUB38cHFxxKZaobM__NrJXGjTQ-Re_QyTssf7t25FTOWMhB9YVkNBZ-LKOz3PMisGECR0ZJggQr6hw_hRxDy7OMKw1OZ6NEndOGGr-bToslUseF5h-JfAdT5vnWuA5E7JTwH2lzhUXvUl229XuBlUw14ylyZQYpBIph_EGCdReTtojXnw_gq3oqtX-PJKj_lP-ns9VtMoEmxjgbSajKQIJjYw8f42EA0wDnsEYcYfmz_g42mT3WXeUAHl8KlEqmTGFUB95vvEWPKxXVfCmBuA9dUJhyK3b7umgQCGS5KIiRV9F5nkxuzNR20nvx05THg8YoMvQJFOMz1AvexvGHIUwetHPnCdzvg2hqpwNMXNNU8ccIeCYNK7yYgJvWJ62HZTuYAOz3SHNzcBsTpS5Wx61B8UpeQDki3zz2CnSvOA031G015NOXzgXBbWQaFx3aXsWubEOSUTeuz_3akpNyRYFEiUrpsh4eW1_bMihp5hrg0TFbPFyS4E35eW0c82JMAYi5gs1ILfXpJo2xllQmTdvkF4-84rM9qEEOzYHh-z5av6irNRPhz--K2mmZuy9YyNGGqhJo3E8ELI0KliSICYz2SDbB-ZsMDMhYDy_8fS4lwhtUc1jHeNG-R-lUK7hs0WeviQQJ5eOpKUNrIbNYTD20VbO8UWyMMnhdaDnSC6Qtr2GLRcLpTRl2hiVacK_cQYH0bmcIEuqr5h10wnhBA9sCEJ1H-pjUaZxpp3_K4jHZmMxtNNE2So-M96WJ3wnHye_5jPeamQNG1JQAZJt2IZ3vasW1Faaq16bU6T_6HYTg58Ij_1b-XThtshK8DbW3ZzhYc3VD1zxedYH3n67MredpfPDXg0Vy3YF5q7cnXyllQixS_pkmKnHDFHc20JY_l3yVdiCSHYW3nrzqxWpvDFUkO1mn-cJ0JZWPAyQsnjItckzHny5s7K6WmjRo4pHaVdlpdCSzXHUztRKVeCAPVkRn8Cd255Q6sAh7Pbtvij0INhl5Ot1bGyGwvmHfP39QxYJ_LzlZuXHR8bkxD6Jz6JPP5MdFMShT1J3ixnmoMiE8b3lN3k3xwHZKviOIVTmuzbHiEHq0EtCHEyR8a1BG-c2vEZrae3f6BLlcQpVG3rK1gmLxOyItHPEW32oZ74qj3rZcPhZ3NQ0WffKAF-zXch7F0oouegQkUZyeMlR1yITscmKXZP_2JIcAX8zC67o5f8hjDyOfpPuS--zGuIl6szect5M9lZqBDz3MSipoKvmnC5Y3f_Wlnu9To_sURUZHgu_bW7WGgRZk1FX1TnvQUhSqBvuccSUALcCrLxaHWtXh9xSPuMOgX6Azr69d7STEp6DxQMgKiABCamCm35y3LviGhTVOlkrqByBxW37C7xQEsIwHk79uQ6fpe51HiYO43wyO6GayAwI2x8F_emMrqK8eUMq6PcMB54xZ7diSdPgQtYmck1Wuu25IuNPpGWrBF-YMq-h4lWEtRUoGqt3DYE1NDw-T0FE2MQ-TW_3e81u22ZJDvNMaSQSVnRlJipQuNNI1y1Vvl-0Cjx0hGdo5AzczE4lcPLnR6PLaVdXBd44q39eOYuKQGppFJIX8HuxTlvG44jyxTiwwAHon49QnZse-C6RoNB_hH-vqcU20ZlAKmuRoLiL0LVC8Vewui9vfUqseSfYy_4SOWfOgBhv-HANYbqsoDkOph4bMlyQoDWP_-Nc7Ixiqe_dt_y6E5kA8jZ6vOIWeH6mZ5mBy9nUwNND9mallP_gXK_-W_094RgIjqDtFQTJMAmq8pn5HXzHccVtrGwG4CBO6mYNQ-kOM9-sKd3Kwlbmw1FMHg7LeFIz4t-uN6R8lrkXveNWW8kOTBiA3FDKFmuM-rjQakXS17OFV1oF37zAiidAxKnKs7W8XiDWoJ9-Z9o779ugULcEwMjkwsc3Uw7SqZtgpQtD6U6WlQ2L0ZDZ3nUW4P2kBve7_jW2xzHYycFpJfsugodwbaL2ktAPwL8IvRPoFcTK61-Q-T-ljjzB3eplKPXDtZ2ch9429OMTk-YQJi6gqXvy4B12YMfOhw5F0wRrPTMZeZKegsl0QG7kqeVbHlvbErjyIEa4wK2QQR3feB-c2apTVVQ2ZJsRJkkJe7p7Ar6LeOiCSIc92OfBBh1xnPyX6hCXTYKojWt-a2Bd70EqEaW3C82xrssCb2GaqIqZFWsrY_-8gcu7udb2iix0HEQdFfiySehOqKvW8WUIeHnfl-SyMdCuXunb4hOAIWeS7bIDryTRawJwp2QBdDaYTuTclpeik9hffiQ6NYd9KQUNj6I69pcfwEaKWYbEXon2bJv4xn1K_gkDwsH5_wwYsKE8FTGyeJJnowMRtJn6RGSxjodhwPNX7xUIXGK_xID3rAw37ijZFlLdlpk-8YRa_Jr1KaFnM1Z9M5IrxbTHU-11imeAiiLZa-jkiL522rNOxVcKwHB-OVXHxofKS8f02xvoPIG1bPgKBP5y4D0gntrohA4yx46a4JHB1MsFOEx0rJY5giMedg3yMJjmIh3-8UhBe0u1TkiqCVe1Lf74Ke5rir-L8xezsH4soUSivhjgdTGJoND7NzMRmUIq8JQ7FGqly3Nvy0iDfpWDnizmfjkLfBWc_7v1Dnf31sqepzyIaboGUbg5tYvV6GQxSUqQilZdIMW4hEQ_HMMlDcIz4MIKlOaOK5gqnsnKzbNk4ZYCvilqSgOtfobuabEQEF6r4qGM7NWjMX8v9QfF6l-V8RwgL8CT4XUVJm3qW9ZENMrGzZxQ0DE1ZdPOgod1lFxJZmhlYxnCnDGmAymQgIP3qk-sOmcntAcfVQp47Af6xf-tafpOi-8qnv1Ob85tkmvb5t4RldRoayyG2_GfjcJ5LFWpb9yBjINGVpR5-xDWDt9qp3e9_4nh2iMfjUwWB6gdXDWJln4JD6yrg5__yVa1UDmCaYYO7NGXxitGqSQFQB9qSKd4EgKpnw1Kkc72cDhiU6K5ePdvEbXiqzY7INWrKfRpggE9FTLpcjVmaAO4XFTsSRAVqzSO1DmuCU5ccXTrS8sGUBwWv1ED_-q21dew4LjKPvm4Vs1SxHf39NKVvFvwINPlGVtVZjosYGuBo2eeTQ_LZO3aR0UqJYmK9T1XBGo02veGr56WkXsok9ubNUCGi3LZjhGWoDUcg9Kd2dJGuhraKAmErsFmLY-FqrSTkMjqI-2djoHTqLTCq5MfOpMwF_dpNqEN6nzTtQ95o1g-cyquIBhWSrF_lIQjKm8_E1r9ENAUGk7LOVPAMDlT-_NJW51cOvvMp0gCwe7Yy1XiD2bt2zplnoheaLzWvfW9gpd2hcjGdoOq0SXzZCJkEebCO9uLm9lFHmRcn3XwYNa0xPM3-hBTWkbNWgnVbspPvRqa-SD1cm9R4VZ5by_aoeZ2E1X2eP2avb-rckQEYzOS8QJxeunMFLpaSi9-16bqMRjRux1bU0oZTdoTMva6iQwnmG9zTFUm9vfSLfJMxTQ7KIPAd4LoDQ532Qm-VKkKbHz854zK_9JylRwP9onaG43BecN0enfgKGwJ6uUxYhGffoG4OtTGWNjL0TNzJF3YLlYaMykf3E_b6_xqp7jEMWm1H0LqE1h7rw_lXvowysTIle90FyLK7jirZ9bck508ezXfqj-Ojk67a70MubjH90SRSFxV7JLaGEFcMoxvfsFxmopVALjEkfZWoxdpHx-5oOa2lLRSzWMk8PpWII38qiQZJh2J5wkWyVrQr8izssbaV44jUL-50XLngxUyFXQaunXawxgAIQEyas5B-sEqKU5DKFaTkIOniGFhkSfpFKLiE7RW5styaw5_wCEszknyO6JYXMTdTfxtoX-StZNVnO8w1Xb5ME0QUa33TT1gqx3cOTMtpI-T356XSbe9jUdRHuhVz1geVC0CVRQHkO6Go5mty7qvchpaqJjWYzRV1uXLnDp2ibaUeWSG2_cJ719HMEhtQpwk9ZQRlsM2_um7pzagns4ttvHiff1zzfmrqLAO7hIE1DNrKeqWSj5MlOLIEcXOZhwyXHXO-zn6HBNh9SxOK-p2KeQQQXb02W7koqgyugWkn6Gpd7eo_oCOvoLfdo_1BByyjQXPhDYOyH3NNMLlOwSi1cKdMy5ndLlwwu4kfjV-bEZfn3y-oFfk3J-0Jlp2_pXKA5Fi8CeZs9XFGYQyKPLTZLYvhmES1EwrAxCdVzk0bayF1Y0RLq4MBR5gnY7_xhUFRUrWTiFhPcMlpFcBFSaLPNkttliahG_XEuxWIifa5LHbndg_lVFnot5XE-Spl5BIkqUeW0-F9rA5MDyCvjIb6-aOfyvD-z8B8lhYd33tMr0o_gxqcRtoKB5Of-bhL6dD9TRnT4IU6pT-5YnrToVlSdXZP04k3pBwsnMiJLKdJENg0UbPXvgRu123DVKsgiPdN1vtj3ePiUaTOMWckT6GU8TyB_AvmSpigLoZCQLNlBd-hB0qboKg7v1TfQ7M1rkqF2F-nHCMcSQM33iXY0pFG-Wh2OTvhfLtK7zYB8cLHA7Pakj3BhdrZELiAci2pCjTgPpyBEhqkOvVT3ZuKSioDBa_auPtpi7FlRap5okc8Sl6YKAwh1QSJwx7uIE4AmrobUYHF-FBt25EdVTSYZhXaTjO8UOFxMuTdf56yRItw-_2GeiCbAb1s_HIk01DIahPz8gWIxLxqzqjzAK4aODr5RkrWnc89Rz4ZKg2osAzSN3QzSPOWJuoY4j8sW6A53mYdMZue6CS1O51YcaT0a7govblTatztsBFYR4m6IP5HCME97Bj-Y6XzJ3zT_Nu13ef1WKp7O-08Ma6XE-SUcbCD2tbgGkw8oBciZGnD8OKppprijKBSrN93x0-sfFlRC9apv-oyNrhNhVoq0fR0Ml-vTuBdntXQclMR6weV2qzFweH6JCrc1zTsZRqtcxaRixTV45iVwlfTdxZK_E3twnaznCJ6inKwXwAYIGEdKLLzeqyP2C7RlJDApKXLU0FTUbvsIg3LTJfNCYo5tOi8ntjOzDAb_-mBmYOX9NOjwofN5lRpvYj5-aUcdBI9mn1o3WxCZX5ZextM7p44pOY6DHli3ogTq4Pweb0hx5ycAclc_NLTDQ_AMZaSuBQmG27uGAVObGMjBdeDFtPi3WddgjdRI41A2OUqYW8syxSxJzmWf6gX8-tZUrz7Es6kwl9hCh2okBk6TIkWtlBhkd2FoQxhpuExiFRElr4iZPBpnleETsBQO265gTBXvM5wH7lFio8Gavf3FcFufVFv_dn9qCrc8yfK3SMyC6byw3EUDPR9KKOtUe5CydwuVVZ_r24T0N1Z6J0YAZeCUvZimIu2Y3zGK3d0chKGFqT1uXAEdrdyD7aCFy_bTkYDtiWSCNPu2538lp1r3i4wsG00KKEcbzoyC3QKhFayvF7AptYoSsZlfA_Ph2kyd7XGUt4wNFZO1dld-LFYBhPWBo3i7fIJ9UDJWPg30eABGc7YbWbGzjS4YHUDY-bebLLCbZHLuH7hPE7E9MUnOj3tc0kKOBu2JbzeM7kK6D3AfbWWvHwgDVxHsFrSd76mFx1CZUgy_GBfSNXVwlnQHSs6nxKJYpcSLACiVLxXDJRwcpc2Aq1n90WgHl4Y5ms4buD9msfthtSTkDjvjzT1h7LNwcSBT4gfJhz8JlZVsROt3Zfz-rR5IkMtrih9Vk1N69CjU-UbY0mwLgcIrtoUDVpN-3IYpRW8yGX1PHmZ_Ost7M6NfpuajBbeCj0qatDfBigbghhI4kQWk0lfDl2fcSN1aNVt9EcJV_t-RpyvnBnfSRzJj7gcxspLZ_yhLc5OOuV118ni9SvFxztWUK64CckroY4RGCb8aw6diIxcS6o3yK58ihwTHc11RZfzsx3gziqFyDxikG4JURMlV5s44BiMKX9qbqVfe8jERXmIIAgc1XgL1A_1CdMz0W9kN4cyKLvmSQToWuBlGvq2qARmsqwpXmLWTc4uED4Kh-TVd02nFEUF5bxK0xUwBGvhKfD3mAEBwV7QeQV-z6SRLwj48n1cX6wkYRLjLo2H55_t7_Mz4ZMfQJCr0v1rzJmvGmUFBGeA6Kd6xgf1BjE7LLsd97x3_HHLt5z0ro6GXrELNcgDJPWFLgZ4GcH-fRlZh2NAilwJwNPU2bteatBVAktfzw_tq75AI-odPxgOB_opl9kTJeUb3840ZOhQVgyEFpPPQHKE7VBStjfcTlnWBSKHR1V-_juU6aQZ-26BTF7863dh4F0rmJhfujkLbssJjcKpRBcmg1cWGjT0kg6GIiIgm4iUpkbVD4L5E2Qq-D8OJFBH1ICA5A5_BIymwR2SlJYM_emCQrYlmVuUILjfGtK7y7dKNPSpI8zSJi_tnkSKcraozc7J3RWPEscOZxL53bRkRrz1SVBLJfOvjifrx2o8g4iceVOL7GFaGUv2SpRB4ta-8kEvABJVYQop-NWa6iZg_6rxRi9ZepqbuKldpJMa6nyKS2hnmxmy5TPU-lnJzZ7qY205oR23GzUH4DW45HyHlqrWif_ZA1OtQQzo6_9QJmjN6D0CttUlW4PojWOGGiN7hZ-vVeyEb-EvclcOI2mUF1doQK_b3X_-rlhh60ZZe9-ih7vxNEJSAXbAiAIljm46Z4gE1DabxhJ2lohMlY7JfeckvN0P-BdtXImM5q0JXSmDP6BS5LctfvyvmQNowP68NHWufSyabrhNnXdO9ez8Fr9nUyAIVsKK1HVRwtiDDM2xOg7YhHYsoPIKOhkIjn5oPyeV3AarHekqDiGMjH3ldiKlkWRheQJ3MYe3C_JwQolsp-aBBD7e7xhcKmxCzzaQPtZIOeuo1_OmCmEdBFXqz-H2_aetOPT-d-ayCupxK7lSFEygfaowdoABu0n7-u0UrUeCeiVzDkeBxu6POmVufSAy6FWZdCs-OLChq_6DnBZKGNpzPY0NgFvPHHwSbNaj8OpSx9PtgmdkVuro7-GsZpxhF5HDFqbfvppS6bbUPrmhuZN_liGaWfda4Z0n8oZM9FQhzWftZDOB83DRsZBZqlsWIUwKhdLHggU7ylohqPd4I6iuwo6iMZIWKpo2tw7ZT3L9LdU94w4KoiKleESHilKiVhKul3LX7489Ocye_SEEDZg3TFmb-jyRjsjF4d-PXz4-GID2f2cDmnLGm6jzuG4iISqjTqnkfWxjoOK7VAL34cF2oLne3W3Cl5TzC1S3sX7vfjNOo0A5Z2qpQIL_F2sg5rLMXxIlUkQlyRAAGRYN5Ete1JQtBkWzVZPWistsHAGoP8DmqqmMU-osn7vDoW-gXgcOK1ibpCIJ9ayVI4g2qXWhtEzg203BSb58S4XZok1jTu_yNbrwhiK1mzMoqljGYs63YN3p9ibI4h30Tp_t__aG5VM63cGKRC5ICueQ-ZN8uMha5eS1Ybzu_RxmztmiNEKLH1SrDyBBaVlnAH_O6Tc-VgQe2Zrs3hAxbCI3hjtjQb49VqjeAsSI8DQ0aRZzqZpMJbTY6INTZ05QFWaweawYMNCS-9I4F9xEkCMDfd4N2aNGB_8TJpU9J-Hnkgfb72d9F-EJ-W3MoajCv6mHGs_ruynrLxdrvwlDbTRU7Z0lLasr9jWh_r0tvhv9ZLct3Cg76txTboasJ0mMy39q5ikwfvpQas6V6dUriYllPpWLjn_3QVYS7H-nkP3nzIzrFSsZv2QHZiU0tBVeVebWQKl5-JRknOIPzjpGUuB7BTTNpogNew66u-B2eEO8ZfHpK23hJziUHyQqUnTo5b3qN15QPOkAL8cvZp7nx8CVLPrmXWWTWOOFeq2BUPf9cj6zTrAv32G_zWCDg61roH4u2GZZkUhPmkPDV0r548kYL0GnztKMLxGRuktzIFsinfgldISw3SA8WrC_IB9EClA8v_n8V8wyfRqKsPLwXYHGq0sB1mgm3sbZUEnKmDCwRDT2Az_OdCfu76ak7ERkotbNgsn5X9-unnca2HJ2Tjt1YfyTOMarXaOjvCXU05M_XuYCnU_6al9XxfEWL7eop9YfE---XXi0jbYA0SXJjoQIsJnrEFoqGY0cepfBp3vfvLN2yHgC6uHHCRAjizguyqkIa_FgSIVaeVwQ5jAWOPJQkU2q7EWPiG9F3132kP19HL8_yOEQFR2kaqkSxPLxZMnuFyUDt5wGdc5LwLa8UMyyBXp0xaFSfNkIptgPa7inZi1zeJv8h8lTjPBsMODdXJum6_9KD6xFkhieC7pbjhl6VN__peubLGkX8XKOgZQR8KiLzW3k_42x0Ur-rkk-BMlTwNA27mVRv-BsWiCgmoo7WVk5OjHe3DZQoCl0pAQ4_pFgokBGJl5PtVqKAyyK5W8TA7HkjXSQjZGLL7LDA2zcWei9D97faZeYA1T_lv2jE0zmHiT179OzQGrYgEb-GSTRuxy4a5gPfKXbvWmHsW14NazAjhDUwaCEVEdnIJHaabfrs1nvnGmfe7Ern4e62cJ8sUS1BKTnY_b-jHCuKnshEekTkii6S-K9hcuxvrUuXNsuG7dMLVMH9NmWBmK093l18zfnzJtShoqWkxZilutznbK73gB24hsi_4CGxr41lBc9ee8_v_Sl2Uuk8TVtlD_jWjFLFPpYF_RiDI-JvFjbkA6eROekkzqO-UNNaXPuVoUKT7W4mFXxikynaUDpYJtOrte5BXLsX4mcWjcKepvLwrVG-C1E87XvB73FuwrXN3FjhTZBDG8n9cEf11ikKTg5VCdIXhZpz-QXmRP9k4l-aAMbhlCgwhh11VSaHGYY_B1BPT_0djdSsTndiwu4YWnAavOe6aIsXNlqdB3h02Q0jQ36O98ZFhw6xgOzI9_b55X8fCyFbbV_iYymoWeeKGDULCs1p58JDk_gzUxtBDg2Gyk7sZt2JYXbW0gSNx5d87VLSgPs7JIE1tTaduesPVaFw2icL07hUVhnR9gVFspDQ2bSc3tGBDctK07YyGzeMP0SmToGIN6QP27zW8x0zCdL1Pn4moOR56BpTPCFOLoZYspc-fy8DNAcmWqkVJgflVQMkZzYxXNLWQqKmf2BjzFw1H0MyFF_d0CVKHyJoKDU_BvvjYDP0uqPPj3KScswkOqyeTQNPlxYnEBwZtdRCnlGrWqTjnHweW8WNXBFxXItPIn18upPs-TkaJ65EExtNwMmcyR4Lktsodo2yBPthQWVH4qsUNQjjMLlqgCM_fgWUUeYubiFjDIUKwoZSboV49yNoXZp2AD8gx0gIPcRwsh-4k92HUmiWHRkCzrPZC49Q9iHSnfLjP74pTDuyjFIbtGkJOdDFWPOgQT15ejYrfU3QPuEsqS9CTaXa3nzQnHm7vYbjfTnbkBQRmRZka8OqYqLKB2vMQxQp4bFKHrqQABoRcfLor0HR3ad3TSDFENGmCcyLU9MGLPwIQ_KlgGUJSNJwgC5JnOLaSkkU6ZIzdHPt9RQxBiKlyGSLaH2z6sx4i6xvl0vkoI-PmbdwlqoCxZFe4d-3vU3OEGprIvqKJCXkqo2l0rLkBWsiScHpWQo42yM75CvyH2S85kKhTNCzAnnCmtlrRMDRN1uaW9F-idlwyM-JoFX6iYevk6RKSX2qrX6Cgpn4GNjyr-I_lx4F0jir-odmPVp5K9yIxi3AP7rQ8IA3grAv82Vvk12klpEF7bbH2USE6ZWsO0iXB8wcI6RHAOOdXcLXW8mft4ipy2jC5p6WqvPvsJvKXCip8o1oGnc6bz8MpSwtq7yDSs16A0BGpvaO2fKSLDTtVlbdCLyNNPZL9_kC87GI4f28Es9H2AjTr7kIwRn75p7ai_AtmI-2r4jCVaX8RUQelTG0HsOIzbFNPfl_6Rc2a29DGJXf67ps0PEQMgFBmTBoWyysckgm4EdjI32LCtQPxC1_PKYGYHKuZydm05hWAZh6pYL17Qkz6yyg3VL6LCT9CMLnAEGY7s-9nyaKk-Y1WjZbAbQixEshIBzUpaZTXLxE74o3-j-B6Htzb6kxc6xhXNoO0KcqAukuMdwUauTbvoN5dF-o6GQtFi1mMN36Zx-JlKsC14dEXqR7VlV7fMUkiJ_TUNlFlkBnc566E5GaDXI3W7ZF57eu7jnsuO0aLV-a-V142UyQyS9xgRw6vCjVIocviDEtptcsQnKY6BQ48KPniW6GCddl65cczm2Ve1fQR5a7HC-9rM44mRxlaZH65ACdMzXgFQNH2iDoSk4tN5Xk4UhUkosRohDhFAxeYbDyRGOY9sMmYDifHBAuaOKdqDyqtEUF4MW6oZuQV8n4MvW93JnC_UQG_G3o5Lh6Roo3JMl5iTwzPNmrjT2ev4Ojw7jv-cpm4Z5EQbSznJ9VDvNxcNqOyJ_xLWJrzu_KNt4mobnRB7pcswHHErZuii53i0yFBdsG7Q1ntcNKrP1gP2X2MycCGf7Ugr92C_wR-4hJ05zoZa8lm59fptlB0_f-YD08c3HJTOAR2o6PlIGZsBdg6E24Orn31Es7t750BPZkwWx3Ts4pSaFUVMvyx5u0rJocWRli-s15wKMKjF2Qplf_Ayw5GmdWYVusnWtg2m-yVeASXXsT4Y3b832QT0-Ef9WEPDK6hNx9LcUnSZIFy_H-i_sJzFIgQIhfqTlsIKwyELunZmqHZN7u6o6JfgX0qhvps3BozQ8uFQFrPLNvitCqIZRg8t0v-KJ8mJA9YrE1av4l79VuLSbakF0_uoc2O9O3o_YXXKq0j9CPp7at65zHpiKQQAAcLPkayOhcxosh7Z4IHBKaZRu4VLwGFo6wF8Ty0XJn1nWbyEXT4S0eaoliruXt0fRSGMf15C7dL-yu-lH1xGdRWgerRdcaLPKaSoMGl9S4hzbvMpeb3daCYl5z1SC69dyHRdJ5PUfV4Bc2cPPxPFbf0UJlATl_qyEL-Kf9YXjLtwQz_Bhpo1KUjpUImR3E4FVT5Y6fPCtmF1zTh4p_4TY1I99D-SBufdZaPRJDEuQ1iqaVfwvi4ayHfEc4ToZeTyvNDaZr37_im338w8Lls3y6KyCh4K3fjByhGTDXZm2AO3GsljxAxZESzO87mwn_3tW_71To2xFby5fntfdWYIJc1DKl8SkjerV8YV10l-rLLabMEk1nupwxR1R7tlMfi0yZ8oWE-CSzcHXMgW6JjbABd9BylL4TRdJ2Uw_ihj08b9LMGUz241igxgfUhBRh_HJ7IY5xweUuK-tWJWeO9l42cJgDaoHFt7a-nCoTkk_gkEE5ghEj2oL1RV4qEnsZROkiSNllT5NpvR-UwrRC6BgnWYOEIIBa4CofFCGWNCknntX9hF_IYj2P0ZPIsYhtjT51TIFJJ2ttiZftWwctBIcY06hr-Bmw_IQ0Q39AK87CKS6abA701sdfkMRv9J3gAhQEdMiKmRFeuw8GAp5tc44dUvFvEy2rDQ-Pwc_uZnStgeWthmQ7On_ZHz9560zhBR4u7a_nWGdBCtq85KYtS4TaqzaKbxz6xPm4u-J5MDouQd6U8ciPragV-frWPKpAzw-nAML_iZYHuWsIIeeNu413PZa19z6SObC8UEV_KlwThsEVOc5BNBEJ2Lrxd9tAXcIbI-HrRECs1QM37q-OSqrZmIhpC_h96ssxsU-q7mMhthkUJShQKR17571HL9kEd12Aa4pWd17Uw69M9UJGbxqiTJWn1Om-qbhWP_FMeSLp2atfKJimmfep5Ad2uFav8k4uLvWBgloCKLzPJ2qaXRACOFJxcTuo8PCaFERtzlSB1gT3AfCrnl7xVMtPPU8YOOXP3AWhgavMNn4qN1hvLcNEOsArchxuFMvoliL6tTSjw2AVWrAbEIisV8ugxp2aUHK0fU-Tu6BUBEVGLHZcsNACwKy6KymzF4F6qlXPx33kCKT-24tIVWsn4Gz_TEGe6CRDt_FDKi-QZte2WoIuFPWeoLRX7USvVcAXHeCteiZ-1vtM9m1XWdIAQG-oY7mkX8ISqpKVWBKi6y0WzRb9l4E7seMiEQqoMAjygtvajx_M0tqgKrf9dF7Rvx2ze1CfTmHWxPdTO7fs4eMAVFW2QmCs1Lipg7UMvC_IiVytC3mfQPi28j6PxVtziHwLBfQ41rkZDtQsBQeRUns9YYL4c-f282jBxeJgPOLkz6zQ9c-cvZYjDh_TgTDb1p2hxf89KcRMNQOtBuzXTrxSXNclW3hzKSFKajZrL9d3EoArqQSxY5dLmajLMugXMUxIkSXNezuDhS1gQq78iy1ztb8pCkJftDIWmhVsXLl5tKCO3oa7Qc6GeYwxRe_lXA1wV1e1mF5O8OChEUmnrKP2y84PPPDCdObZadjXoU_V0XTghOsE57lAD2sAjDfiTlNkEpcwlNak-odHfpG0D_6F5kUi0n4GGVfr7LccPmq0AeFp84f5TM8AI6yCwJN-il03B1eY0P5eaLaf9Ebd07CZwY32cCg0UARDy650tyVtzN32A_58Pad--bq8TH-8YZzlyU2dHfxHH_n_s5FIuz7ViNu6LN-pbG3psSPdkMzbR9ncwMgrQGP_8URI0COUXiYv6Oxs8G9k13fom4QYsfPyW-5DPZ1CtJxMpsHufoxnOM-kJqStsham4Kduksxv_NvUXNHXHuuubECAnUxNlb22I58MNNhXpEfa7MKMavy5wMHOz1JEIgMy9R86N1jyxhnIcfTrZsQFTC09LBlfGannAWj6rxyjQmrdDDZG_uTD49wiJ4ah4GHgS0Jggp5USCjTy2EybNi1xuAtnfLx_Zh3ySGk9IaKkN2x0jvsMsMFMT6z1di3lS4QATsCj5R8AaOh0SS4T0_DdZGhRXbNH7fEJQfhjhILjPHEH6oljsLULQj7JsUTNkz6Ed8T14Gw4HmaehZ67lNcC05pzkSNAN7t51fnIkKMWj17VdUCgmlc7YrRe_4MaJxav7nlvHq2jsRZVtU6J-IFGrNez80BGHZAce0X00q8zTZlpIG9Vjlz-jBglFszhl60i3j9mkgqv7-3LqzIuRJkvolFv2c8M5eHZZ77P4Xafx0BWpPDdkB93z0IUkduq0DdUoNnfpTi6DLZ0wYgbkeeqr77svT2HzoeEc10q-vZ4PR_6QWBAPeLOI2ZK6L5DS8XzeBxSaLsqStfUtnu6fvIkTuHLnu79p5zWYvUK9iDSkptk_yPYFYBRl-GesSulAcPJMAHaY9jIodSOMRI8oDWBXyjquw4h-6tm_22bVaNMcAeqynz_kKrhRjCGS48I1o7BYzlEuEj9g9MicB_lK8OcEBAjX2BkvToN2-9-YQenkVr8RV-dVpihUnUFjRoBHkfeOfpVaSljTVhy9Xc-DsmUxiB003MwSBwEtr--R16CKPlqjcHpcfKTMax8TgzZt_q06xncS2HFSGubjMFhk3YJOde74jmUX8rxgvdiPVpnFI0xVyrVS0lZx-FOqZ5-m8_Wj_D-IRo1WHH9gGMuTxhjPlofUuTWqcGNcjsTNDmNUaDkpQunmefo4bJQnzZ5IvjSUFHr6_lxc7uOl6XGUqAgGNj6HBzCfU2Qn_8EhTIIlwMWLXQX8TARyWK4FkAKniC9a6zb3REAuu5KUl4eAqGGkjnTL8k16h_d4efsDc0uCKUiDUonPCKNc6wvd0Chx5Eh3jWlHnBvPDvru5KVXanX7EnmOyrZ4wj8crU9czara8WXI53fU6SL91KwnysTmSxGXs4a41i0Qs2fZOKL8sAigZVY5u1cVy4h6wsmIJ9HMT0T3YJiAQhBVrMtRlQlKvtROTrlcWu49DPngiZCLgWWrHrHjL_ASzbxv8RgamXkm5EnDuTD1Zwev8LLCr8Ftvsr9mB6juE_s1DUy4P3v1MLGDsbs3DJB6djIHl0oiNjnAB0A4lSml12a7C3MQKXjtxN0XvEkC1Oq3Y3Nu0Wuecmifkj7Jt6yRTt3lPpOUp2DbS4nmoyvE7dcXiP-lTCG_IXw40_N6t35KmKIjNVqf43OtZW7oqWm87abH-dteN8uGxQhalmPp8LXcPRvTK2QHaZmGlDEfX2oSmJBc16qaIVJ1XWeTPFJIozfMeVJg7lFLlS62ksogldva9GQpS2NOKLna4lxXZmHETeALfzWiY4smBhf13PMimCd0GtjX5K9qbKlkP9FPqPoN0HxIjJx5eRYy381knvyw9aXLATW5CBaLrk0-eI_YGSDSTNWwPliVKMztYSnNq71K6aXoOUEex9prbD26rDHXZtkP5wm7_Z55c_0Co6BoPLloOz-otmqYyirz-W8LZDbueoHD2uY8qT-SRl4L2Xpimrz-nMmZX9iiIQtMUb0cVUyxcHMGYSJsh1mBGMMsTwZgugDvipp3bYOsKYytvv1xBqsijO28zbpEPgpbc84mYACfz4qbD8v2dbEJt3rTrVyY-V-meX-XA3sbx3o1EY4byW172ho-pwLhRq_LWbjXsIRzGf9-58YZYD8pdUKsM6I4rF28usM-nWc-FfD6nmP1Ntq6SoX96eJUSs6T3NDuazW3j8MXUfiLZ89BwRxXdqWPXRfjdNHVQ73_6N9kH03ic_zetOSfJcOzKpWyVvbb_sB09C7gNU2GbrtAGI9j1Z-_R4JF0O67qHxnT_27QGeEuEd1v6OFFTa783daeUySe-_Sv4tzPOiIXhDds_rZARbXzjE8xlOe0T5FVPhKnicvXpz2DrJr9z4_kDfeaEnNhcJMSGh5i_G9_liVmcQJyERcjm-ZVIZk-JJ7eO6cWthB0LXPogFx4iq-38plotMwrGtzVNNUmTeVzdORa2dXMa7Um80mSg1rlZi2UgoECpC4N4j2s0vxJGHN5-ejJHDeI6O6mAF5i4Wv1mD6S_4-iKrd8G8UQhnmLpkIIlK_kKD5H1PYXZHZkB6mvApRoWWmhmSGw6oYSNaKhSkv2IUZNhHSrhUHMXdjdOKBczXEJ0nhKl758AZ7wQCb2oTzll3_n57lahgyItjespl9EqSZygxjCd1VQBlabbJoraMdeLX7y3b_NIjRWldxZi_kVhfaOb1UmW9U3LIdg1-s6N1ORfjukvP4mbYSPAp0zaDsQrIIcrlzm6gEhunu4WkP-7U-UngiIqMMYWoknwplu_uurCfBti6p_Ju0D121GZrnKxeGemLfrq6ZeZyGzJ1SiOO74eILr8-Pe4wS-LAqcKX0NcbKVUpFE5D1cWAUt2tRj858RfohLcPAFJaNNcoRy9sH8L4GPRuAyurArXGw8K4btfADI3jmjddHv_Uzyf25rK0TO0wlJqLGsgJBzGpMLf5GPTmFk9r9Xdw7-C4Z0LPWQrhuJe4IV1NZMMtybgBQM-vgjsdiEog23ITD-lwAUXzbSQTQS4N6WkInDaZvVTeXpr3mhU1_-ARvAQx9rXLy5qmlI7VgFkIasU8cG81X25QlW7JSU4xT18tqTvKfpZFMVsWOYRRacx5gvGnYYK2GeDZ2KrEM8Wa6Yogqm8rPfN7TACzJEFU-8Hf90lidBG00kzAuSUZRzcL3EVUVoWnUoyXu0udRI2A-wUkh4WMnHnhDZfjatNZakn3ENWAakLn27zjztE8VXjQRn4qeBiOHjl8tYJKbiN9WspNeLvSWhrQMUf5kT23FWFFyxuV2a8vDonZcDE-A_W19Qm2nq6cBil4u56bd-cO9tO5N3eTptQ5xVjNT2BAr3CdFYP46D0PX16LH2UXTE_jx9eyKU-rwmzVrowhcV9VRU8MvfWypEC0I9gBn4vfd-fy9ogtKzN3xLHZrhPDDZ61nV34HL7M2sDVkd9pUTbr3GcQrq1YShMsvwcpyDT19WbFxIH6PoCi8_VkA3hDZxOCUHTCTNa21Uk_RkHtn9b6QcSESlU0k3rHRFCZ8-EoXKu_7jsuWpK2V5hrSYhyz4gDGeNRAyuvuJo54B7mspM4_Wc3AAPfoF_CT46P9zQhCLD3fbRK1VMeCwW7tqWuYYbxzk2qw6gn3Zgs1bXUh6arnXc2G19WM_dMDNPPD0wEQmrUNE8HJi1zc9B3sFv84obKByvmgkb5nxb8xTYa5gpTTK1ZnYyaYN8ib6f1Gxvjn5sDJE0yIXLRIROLCTUNHng7oVjG0Oi_vwAhiSe58RsHOASQWa9cJYBAuV9l3s4FNu9xy_2gNpf8L2OUGe28ztMl72AjHJLDJaKSdq3z7BVem-e_zYBVp8n5X5no-FlbKNeYS7QBPJHiZ8cmnePbQsfWyJPG-F0qGTtn4sz0a2xNBPYOsZEFb77GNyoUZlNSGmr020-FjQAouYGgM30RUyWUjaJ0mWxQWgOCFJNthhDnA60t3h77QG4Kn2F6OVUeJB4IGOgOGPX7mM3GUnldIK2hfVUh9J09yk8refXuKhmg8B8FXeI-Nr5cPZHxYu40L0zxludarTN5ye4YK6NidrXpGrEER_Bwea8_qokoegGJEVWky9NyNKr4WFpIaE1FzPlE5iZZeUTKUrcSI6lhJsk0cYVH2DWdyOargOgIlg6tzPBW0f1W5q_ZkaF0IkTvruX6Dh5WVPDvQPBtyTim9wSNQI9sqayF-gas7nXXoPbj49rV8aH0aEetP8qMjroCeCb1ILl5F4rthZ8T1SDpsj1Pv9F0qgnlCJTWOhL5biwt1GrCu9IPB6RJ9JMZwCyue76g1lGRcORkAtTzKO9T9O02PrfBEDgZR8g8HEwtQ_qEu4CZh5f1TGkBuiuHM6aeRagHK1IqanBd7bWknwnJ0wCr4R_-BFsAiZeO8W44SNSIYv1y-Tu4kC9bWMXJyXvqqVhWBjPCIjSDU2H8vlh5wOJJK3lVlOFxIO4gKPQ7ade_xxOF9a-nYuOzJwOXlhHFhzRHh_z4WsVQ1RLS6UPd50PQ6rpPOXoR-DTNsZUmH7ptxiFZFkfBuCAneMWAYmA5IL-4qeBl2NYW3IzoW5d317JHuYbcBvU6Xe7xQ52jB3JTU33IVhgigXYay2GPURAq7GFdUFZdnxo2NsyiySXAR1ChUIOShD1O-oUJBz3JSrTSuINIzH6gCE3EeAh1fF3t33gwbQzNeajCdZvHfl8VC37NNvtuQByG8t_GC4yCEZYgECqWOmZyNvYwTFzeJPaYotPeVax6A-dAdByLDosM20jqa5u4xWc2Eu3X4m68au22gdxcOLFWo_fewWIiRoQVGcT-aS6rj0pb0BRy58x9FkRi7whcu0mUWYKeD1slmyHt23kuEp3bb5UZer4qVPzJKoZsVXOjmxdXomJlcuDfQyp8MfwuNh6O_Kz41OdEx1abXCFndIKS1S9zK9XpvQrVZyuascrF6gGOYzM14izmH3xALqxa0P58COVYBTAXMTWSJYcMO0zmoeVyuwjHBlufQn0qTl_ZKuzT0aVcI6p9M4qWFBb6Dis3EAN3v31fUf939IZ-pgfSHGGEdUZgBL119JFyPxtHLRqhUKFPa0hqp0wymnxpYPvEP4vsXqISG-31-JVniJLIR5-KBhZaI9xelR2GEAnxwQlLmASxuSblVDsk5GdiNp_HFv-iiYGWtmUqXA9D_MdT5Tx6YdxLOmCnm6SOlHa2aUN8YO-zwqAFl1kfezXfIzPaqCrCV1fcngfNne8fvMg9vxOIwFuntSfjO5dGfJYN3p4Uv7IgNEESvFpmflZmTLLbOwkgYpxvb2fTmEMO9HjEn_865TZGDbNTfOhodfvFEhCeTXuIC84yUmC-bvY0XFZPle_ocvQtD-gl4N464WCHBAJeQ3od20mHWIqdMvIv9sd83-8DGzJZyL6kNaYF2hlE6MXCeIlbwuoptOxc4_ZCdxsWOihUBsOsqR4WycycJa-ZNcyLohLIencjP-s5hOVTKmmurarVPCJ8zA6GOC0_MK-k_tazH4KejLyvR3Y74bUfy2gAAlnTiVicYEXba_eVWT2r-uYIVeltZbdkBC3jwWjDrRbqUhdlrrn2ZkI9PvW2dKH8D6gVzwQrCZplyV6eIuD8FBLSZtZQbaKMT9OEiSioT1NlNCxqizxtEh8EGlNX_jXRFWBGl-zDkE5JVg-TXpqTd19UQIkz7i1TMyUQtKAhNFT5694G2S6rmW0sJ7vdqQgSm5zlfAgaLr9wLHersWY8AU_5v2LPwFfthUs5ka2nhHnNAwoJM8BgihwoS6jMCSRfaJ-a12zXEvcVdiAggVdbTXRn2rbq_0skkgTizUQMOGNWrL5e0rxRNenwbUHYCYOoJBRarApUPjx_HtjUb5DiIwanlwwytzQrpv8KczLjHpVyRlbKbWXLY0UBvnabix6Iq4J4aHA3I92GHyAoox5zFEcfws7k_3BxbRgrxgdVkiD62ykZrvTlxVapHQG2YuGWPkNSWNaoEYLJc5XQLVHbDJbquibjfuOSmK6OkZScF_oPzslPSL9i5fuQe60MivtQre-YmIajvhwJS9lPgAJ4aueug-0y09Z9PJZ8ptuQ7nQjAjV0GJooFDYdiBUAciauBtccKIe-8djCBvf8DLC3PzAJ09j9SnH_j51VODGDC6dFQmgbNdYORUwAHdYLMJ81LKJhnGB6HWK4E9Ipi9GUmUB5pAjnh2pyfsAecStoAj7_55KFw5LPNZuphEYoUqDgNkRlB54bD3fWFGh-AkeHfMaRrbcRiYCrNOz06OEZ_929ii_k-dXxPlvDjZlrj8MYXZUViCBVsvzGb2xClMU6tRvG9J0dZtOLvA2JDoTQaTPtz5xWIpHYx06vhGpvPp8lJ0VTdveOf83um_algLhDRLbx_IYlGSxG3VoXWhh0ZdtYzl9VBAztSR7xxk3XZ5i_eyPXz65irZTr_JaYCUKFmLtBPdnLNGabe3Psu81pxGUa7pa0_mzKWIV09VW4wTfupc7UVoOxPAysaN_JooXy9UuhxREA4jTv5gu3VLVYTc55_VBiOpCKVTPowCG6np__YtK1PLuxPcl9KGZYfJJEDLE_ia3OFNw7ZhFxfuCAU_7-8zbABX6j4PwjP7x1S76xHCTIxeTf3KGIlLqqdVCS1z8UILaAU1tqjAqyFKbABCeFTUDISK7u58vNjT2GP9RwMOIT9H-IEI9ug3Fwf0NYxCEjamzDCljS__4SI3M8HOFtzZpf4PFV2L_nz_7rw_pIomEqkpdgQwmJ_aeaKkykLda3RFda7Rb07Dpa6K4u6v53dfxGdDlZZeOrd9yvHgAXggIPoqjQL1NYyEl66opsx3AF4deV9FMBWem4OMWg_Hxdb7BooETZQYU0q0lSqlUblghKG9N6625kLhfoIneSa1ek-Dah7-T2ABDzQlY_iXf1RwBkki6QCwUteE51LdbLmDlzeus1cawGyYn64ahGmFekG6CHM-7URrts5QcG1CUn2pGdXDG21ihAgQxNP3a9rSPX7pFUdiqesxMb0XvaNJFHgJX0CSktUC8IJs5hi_gjQG1leNc-sYeTKsu1i2sRsssxBuU9nb0KhuwZDBr9L-lrw7fUMDXhulD610jZ752GFMr04MVwFnOPI5lhwvZIEYw15OH_ubsWemx0BQK5NQIptlo5YiMVWWYJyL0Cepe899Y4rCtc1aUscaH_6a5OyoPfcrkEINBYfKXjjElTrYrzmn6CULLNHlYxeXrlhYbsiEDW1XEQe6TgUSZ_Dh0VL16NT1Eh0tSfUnO7Uo-zART9TAcXSUYwvnwqft1bazRY9GYqr3OQK20M875HpVirvwJDsyZwMT6pJF85pcnRpHSABPgSo5hgYmM1qQ2rtgF5jETDHNDtDIytNMJH8pStsVJTEHlR2Z2lIx1ap2WpCDdRDH4u08WsY0TB5lDjWxYdoelARvTFmzE8nuqGShFR3-rnuI0bBIoGOsmMgdWfYks3ttQRY7BLSK90DQCLzJP-qo-okDtTEggQSGTTqMvMKs9JdwIzeM3dOWvFxW1zg_XGReSidiZaBjd-C-H9BRypxsKQZulE4gg1V9hmNz5As4xotbWyZTlBxOdM2duFNUdHept71bGdESw8_-AVbeWeycKyGI_LHTiHlKvGZQkj6PYpcLIcSBFzuhWM-dmqTpkrHP9DfDELLRkJl5xq19mmQtRexPLIKFr73-ounT_2dzBEwsvyb_SMXvuUb2z9XXWmB1qK7xqqjdPFqOKkd2oIEZ76R2EDKAlaaqbOjp549RwPnnXxGfw_LPCp1HuXvO1I92y8OfCCGQEzVJcm1uIuYDMdPOm7B935gck2QsBqiuiK4009TILDxCyRQlYsNMmknxpjZ-OzWuQrwijy6UGLQ-2cck8uHiy8euTEyZOpMvHle7qdcIPzzd34xRfq0PWZkfl8AH5YqS6Vrz8SX0ni4tYqVs1IzFGYRV0yY2y2I8YfiVILb-r3W9o619ZX87ZevmuQ-oKVy-04Bjttht7FoEKFe3W_lcfnWfAM6HyQhoe8U13v26T8914nH0vh6nCFcE2BS66F17OyjfgimgUyxhPYZNQBRUPIH3XfXfuAHbSyv-uxTxXeH4lyaRoz7JM5-msRHoYItgvpqZqv35P8IDfPhne72Fjfv_XoJHU3-UVpQjQepqVHzkhQ8zc_cMbPZ3PZL8PLA76b1_iFkLqwl5NNAcuJBBqUsIN9EOlhmFJzfa1X-y9WpwOxHMwQqw6rv4Su0YnnCXG6L50TZ3lMk88c3_BBtiNk94ez2Dii59terEWhrAGFlgrW7L-MbxkoqU0wpn4aTdOcGJuMv8CdTHVcN331fA73YwVAKTWwl78eGcUQ2VyhTEe4aluHM-Lh-dJ_9Qa9xT_EpqXfAMkOylVqNzl1LDCM0mWpiTZa6gUPPl-bA_1FQ2CHDbDL88aZquWChFg6Ug7dAaTWFBGI7r4gCODQtBari1EaJA_rE0tuRn77QImwRONg8jdV9sd8kriyhAHbe2JSf3rUjzLxqWXT_ZfIex7AUEk2LGcbvQjjLNZqkmOAk6Uex5wRJBOIsbiRszrK_hWI43tF96xn6CKsToFu8hxIQ8PMaf9VYQWIRF8PBjlSc5dFrcXPA_7J6snXSfCrurU7Rva-xLrhix3Au9h1XtsQdfg6jZdaHqedHLQfpd6AUDS9RgX49n_RPKl0Foe0BKnsMCM3eb4UYsPmS88jikY5HXRkYcyenuuZTtL9_3nrU9qzJp9DwJe_JlI_aIjh9xg5lTZ3kp6Im97v1vZVrGKwbGaoDYVC0PfIrgdi6R5NZmLm2-vGe42VU0Kzspz8ctOOjlrgqjHabrQgVhpeNl6LcYsBr4HMds04N8PlC-SbHvv7ozTuSgzv2xAU3oDfD_QUIjlsBqFXc6-2RbSLjxIUNckm6nVrEmpxYJ3h77egTk1URHAxdYEIhGVjutnTscUMOlOkC2uG1eTnMbKZNoqqunRFa2sY5Ur-Ot455YQ-jE4WwhX3YLbx3w0EsrVVlizGuIA3nfTtZ4IBTAbAHIdM5_AtBk8JpNqIcEv3aAUhkbSQeI0i4AA3MfiZcTG50yn39HTSbaqVrQ0UTilHQuczBh2ZYyW69BX3vQg_28gOrFrxPLr64CNgfervQ6DeY0BmLwgP8ZvfQsQr2Lwa64MyWcRF8Bw3mexfpdmHqYsZMNJ2xUe-P2vFkjQD-skv3wdYmvBxWR5W3S4MOoOIoK1DIx0dg6z4JkzJfaU-OER0YabxTAaqiwd3CrxI8242SdNDpmz97uMU6sM1N38hRNhW9mO6SRKVWVucGXrt9JXHt2XDEUrmc1LSe_fG4391qocXpui9Sg8h3YHEf9iOXSfwHwJZw65eMwG4dHDmV4q_lOrw4KgNTtEefx87Gf-he3KBY48GdnipRPktmOereWrbBVKLwfGRO6B8IJVGeG1wNWbOvYjByPL99_wDikQvOga26ApUWvkmNP3MJTkjgEkeIK380RXNSYDq7UH_VlUPXrUbeVloxsKUV1Wlw_dBxoUMyf6J8LRpkQ6qOF2sQG7I74pPushPNwLpMtfyveIn9m0_tXYGDxkwVp0BT92jeo6X-tPbtlW0uKrzTOw-yV11_AgXKSFDM47tdxzsFDDuLVxZuFl8pOt9mRX1wGD2FtdVybCpUXKPLnIOkDzcil8j5ij6htxZwFj7PO0FgjGMUbFM493hE6xCGuLMF6cq_qTMnSBKLhIdvAPckn0o3sm5SzllCWGULNz3MbEnf5ULOd5U-dlC2vZvoZATLH3_zSUje-F6MQdw7oqw5RGZNcDThgJe-XK1z8N7ZJ7TaXJjIkYd0any1F6wAeoiNNUbKgkArKGBU-gdzjm2TIIo1clRsHiIwgoJIOKmNS7orS3SNgPXrOUfUjzTe4o8SMcHva2OIRvDo6R3bQ1RHHrcEiulhzp2fZgGT7fQG4dbnFbz3vFtUhDmU3Zp5Jl0QWz8x3tw3RqxSOld6JvLXS75U1dXcj6WroBfFPsX4X2XrbYRArc-QUALHrPRpFL4iyDqyooe1OOkgTx_bxUcQmyTs8dgZoiDUY3MmUNBhVreH7JL3tCYKq6EV47BgYJc70pI8tZ7EO67C2eZrkbg6lIuk2jBbHl6oFmHCuOS0KvO23iOQU0-R4FrChdvJJ3ohZRy1IzK3YJQdJpyoqX_jhm_G38BCZumU1D5uF9c0DkIzI4DPUp-PaDF4HgLhddlovy2eAB1F5oPmsv7CNyWPBAwShk32CieXRrb4bmMaLjh75Y1YataLinBohFdAyJEqdOcq83-Of8rRIsBYWdZTfbFQ5mI4eLtPmcHCDroRn_c6Q85cqzoaYgj05LbTHC0OW5vlj4Vx_b-bJZE0jI9R51Wxc2qRQGi4QAjNHyFt-vRUWvYrE-8V7PXpW6ANybmOYxsFrTuU6sggkPXCjqHKZXJlveNU5rRqujWu6HSVM0FjY8ue8wi_WB6ulC_AEu6ufN8B5FW6EcdB-RXrtOMzH3pDJVrIujk2e0FOUGSoHmTK2wFadSh4yiX5_PHjWRngwm3p5fKzAkFVMbo1Qx6S1P9MigC2KV4UbwJvk7-CwVSfKtsC35O8oSQxc_JpXJAys2JWHw8J3O-7TJT9wzjv-cBabgEY-7Eo41DTLJKdVBeWl7BmeEKMjShJWOT3BNaD2n87ilh7HcnI5FRlYn7ascY6-fg8Sq7zGB4JTGK8vVca52X3w0xMbMFzGlj_5Tl-6uZ3C1HJ4pPHjeBkC27zLCDX7w2iLmTTVkQWP_OqpwQEXobIQzQw3kt1ButkmB6VFKbpZlWPxPM8ovKrpgVpANSmKUIA5VKD9jpvu_aoN75Ae3HmkPt38V7HAEKGJLtKZus-7KvNZOux-mKBMcSoI22Ydc8xduqSXSENeUu7MD1ezDgsedgMVQEY9f0LpSL2Wvn8Tuu2H2-YbRGEtVPUBZmNbYt0s-YX8uYBAnhung6r-Vq8_z-5r7N90g86ntmGmqs5hO5iRypgRenWi3PAvMo0eBG3trHXhpz9t_MvzIJhjQ8_mvDywQOOwvB6ijaK2I4kbsJnNYskzNGbEHncIuuLG8R9K5sDQcK254xXp7flwZXdgX-AF9J8HhajGMoe9ZuRNKz8cUBZpnAn-ttn_MlfrvuRa9LTqKnp5VzJql-WMt__ILHuWBWlqlU-RyLoMu9g2R1jD8dyCkQ3PC8uNbwB_FiDg9X8fn80P6DvQSog4DkBpZ7I8j6LWwYy3IALfmo-jeecsxbX5eNkir2rQ3tMkS1G-qRphSYXgp9qcDHoaKOS9VchmI15SQlzyJ9pzKGoRzdGlL_rGkSUxa3iu1JQXpiwxytrjAs49GfQsBDGfZF0Owwyvj0T1iICj-aay21Mf0siIzroyI7WI0HJxACPFMrJAYTvHLjlh6etBsYd4BjGpgrn9EhTVE-vgchiU_VbNKvJSmPG-HNlGA6rgeJ3zJCDxgWrA2IKQLdcnR72Ror7Y4rIrXmy8eazCjx9lci_2nzDAOkehhUsLmHqPrHhK6eFR16aYHqA9mJpWYSTqhD7iZTLeM2mMh-J4o62Z7XJ7maupOO8quSyJy8Feb34ssl8QPDHelMHG93RAIvfOGge4VCfr5pVnzbEgnBeNSfLW4Zy4DyxCj4FEsDOej-tjOgTXZ2XaeChuADxTqOn1P-2A1e_qrT-58pCPBwwXjLsz7YmCcrYksyV51BgNHklcHfO59k264C_h9tjSsd8cYi9jGhmvqEovHb2pHDYz9fkYbLV9xhbcCmIn7Kfadh7MDDjV4jdUFcGg0MG1tccN_pzbKzeOS0RmI3ThDnID1cR110kMemNDLKswsrxBaKvb-65-HiOyQLkQ-5pAWvtGxLzJPzrvbEr7pH-dZb_9per2OGXhI2esARHvWcrZuxPLp8izId_CDyWuiwlzDFeFAvT_QuTvEpnxLMrAW6-_Gf7GBkMuhVNGXiUOKAXMnUX0erUBtpmXX4fvcIwAzqzr1iIfndnLHCXAjpjJjSZs2_9z-uievXNg8Kc4kwfeCUhZexy8_GtUIKuO5hq6iA_6wa9aRRG1RVmsHdTm2hWVZWzm0ODLKVmKvCL3BuxWGLx56qE3fYCkg54Wlu4jyZAKVI5tT_5LHvCXZVtz4ohL00sK6g723mtofuo4IK2ncJNFaVySNdfBOfYty5s28Jz8InJRwbNpZ-zKskpWCjKONYJlRylx1sY4whxtABuJJ1d5CZWZvQP33VzMGevnoC_9E-4NNd2Tfa2Z00b_rgRseHNX_DzJX6DpqpUTV81GW_Q28dxGCi0Dx99hkN07SdTHNXx8RkAfxpIVsrnueNsb_STsfs-VoqzCNq94Z3wWBWf19HU1Nkr1zLOucxwDzuNrPNYixtyoJjATZp0CGu0gBd80ygTL3sKshzTlop79WcXeifDs6sDJ9c5N4ReaqPhjt586mElf__h6pKAC7mcGGhDMNSDsqmWHNtu9EQEkccf5Co94ontm20Ut2jdJUSsExuAvooc9QOiSovew7EVZkaWAS4VXV5W8Mu9aRLYVCHLVaCKzNJbTzEa9QGTK4UqB_h5zZQvY_BnZoblqubNbE7Dk619XFTl-9hUTDK7UA5ghz-vdGtshCgn6fUIthgkCGdt9oyJB_5WmbV4_a2iikEaXjynqbxsBqasAerdEJPynLMujxxU2jeI9F3aq2TpNBU6PisnFkZvp_0cA-MGvu9_D8ko0OnvjBuEJKaJcmvl5SjKAKG-0eLcHqiXhw7fhIKQ9c1SP3l3Joy0rdWQGUNU1Unf0SzDbXSmY7nCTfp-HszL0iTpgPOjc1pdITbxwn9SCnL8cep9YaTLwfGNBJf8DAhqhWV5q6h33qTX6EHTKUjgX-Jb58BKvbYsyXMcSAZyKssob4LygfDdETdZvO15JNpNzr7ZNUdUt6ayLVy9HjGYj-EojXqPT7D6aOzBWWUXWiWkaa_wgDt2eAT2G5KtehYoYyFVgOncAKjRH4pAr8spTSpiHklVlxfUIbSV6AXzNGNcvr0CaZiIHx7LaMPFZkahEImYLrAQ15libHnms33HjPZwkb-7-5lzTRXF2irODjK3c_HPaNE2pUT18Xml4MOCcO7WHqKDu_ETgWIULEqkw-vzAdqwcGtoNsd1qP8I4AMu6kL_WQnBtJgfKBqkH-_armeTGvxP5ot5031A5Aj4KPG5TGJFoqK-8ET8OfKdyrdgrUotkp9HKJhcd1CqRxykDsL4UrBNY8eL7CmYXeY3DZphhmMNWpl3PJkPGJ2g4QPE7LIN32TjmNMwFCA7Lmgdyno8Fl8M0s2VB-jNhCGY8NcBKBMLxOddkAtOnvm7sku00mZrxmYChbigfGEcqGAyp897OSi8f2gclp7SoX07xhu8SI8lwKB9B0bH0LtgU7Sse9d9cl5YaCjZr01T5M1bLr60K7-So0WOZftKXpxyNrkPwsSAfQj22wIjhy71WQCBwhMkBh2kTlaYeIDKnSJhowq1IrdhF2__PX_pE9O4L0Na2HLaQjLNf2h80cgcMtApmEQ7YzgI0mC6JuSAeT7tEKDYNBnjLUs186_qtJgn7UlNeScftNAarVSqGKXta9v0lJTbDGrhKJKT970Uxud2hmWKTJ5QHhZzM4IAkGBGCit-INaSkbT7tRpqQ2WC2IaW_VW5PqC2wQMK3mDY6vRW2c9_NEeO7SRerEB0V8Ql0-3YwOHSw1OD7sjyxj12ADXh143LaCPPWEzqv4unsvtdefQNLgLKlbSGLYxf-KwfQud_2bFeWmpEjQgu7qBRS6OLnI9q3N5oMllfd4UyrwPmYjoCy4w3DWpRN2iC8v1cziL_gxZyIrLq0BUBoIDnmBjbFcb33xadmN4PurSM75t1ziRTTbA3XnA9WIUKWBMm-EZX9cDzAlhNrTDnXgqRhxwjX2F7ZvHvU770VTx7zGo5RQNI7UETTdlDkPMZjOpQgLkcCCJrUh_OTxq6rAVW9yh9kru26MhXx77q6NU3gE-K_OW6olEgXf1sO8lhehMRw2MNMWzd7zXriYr22H-IDUGKqj2sUBjh7gcLaEGCcA1heihnIaOJRnuN6UKF82vjBIe7WlOT6cT_30TpqoOJ0L5cznw2KIeLWTDiom1DbAlVIRj8GjlzHjw7jTxuyvcqWNXUEWI6KkC95mSWSAfFIJqg-Pxd46bwedIQp0WJ0EHtpWO_2LFaX220yrZHe_eKrK6q4i6mGSt9_HtslPU4VbnMzBVuUDpX3YBbeqbp3HTTF0HIgYOQN2a2-IRYvED1WmCu-SXZ1nRMZqyIe2l3rUbq77BUdjeKxp_QRfxz1VrETwdC9oRVm_4JO2BcU77vLmnEcldk10p-P1GzYmebb8HyhaVvBUh5x2ILt_X5wOIxH7dI9bIeCMexqka4tRI1V1hojkEuxBng_5LrIxf0h99ZNKIdXVEli50i95Nsfco1GznDuAxOPlS8cTJp9BIPizENaPWhhYnnV90OSLbAMMIAm6hQZGIoTuVScf4fNtYvtGtltdxkYkTqc9mtV4pMGq_OMriDyAurIR-Eec_weTT94ddhY2kIodnwra0jrDlVzezvOQ-5kEPAakdnjPpi9I9aFIhly0CXnWmFyQIqokFH-vuHWOMJMQ2ZfDFH3RU6ShSR2NqaSU2-D9duaS8bLDSjNQM7LNyEUkumg2vqzb-flUgEgj4VTDO0koU25Ctjc-GhtGsnfmvTKLBDxAE1WpZxmpDmUUnB3z5o4QTYHF-9AKzQDKq9irub2CNKrBskJRmjCo9Kd9_U8UhwmrCFAb6AyjN6TVZ_SFAY5WBZgHfKzli_EXN4mFHUhjuqMkuCBX3fmfTeIDI8bfQ_hwYZrcw9KeqGbbljC-e_GpLGmwjIOXH5iWyJC5UCF6ErLh8O_NxkNXQ6Y7uNRBK8nCdpsL62A5hEWU4X6_jX-Hqzww-B0o_MvLUxyn5rvuy-MWIoQ28At5osYkbh2RhmgMpnnvnke-1x3b3Q4G-Dzwl4KDEqSrZy34dCSB1Y6GYQupnxNah46Pgmo9binPOMKyE6SrrfEtMDusc9pR7GhxXuLyqAw45cncSUTXDeVKDMMtzgAO4vwLV4oD5DqZw-W9KasmF0Z38hBT8H2JyVjlS8R57U4k9uxQXWviT9l7DdOZ7cgy6zDP7Tvi5nGC_iNGv2Fq4ji1Rp5HjUnLTxQ4DFktBmcPM6mtkUqJXQL2qFAnlYaeLPc48b9aIPCiWCc5TF_2Gnq2S4MW4djwXYPeBI1aW0m-kM2FUhEp-Xog5NFf9anXCuFNoM2aWEqtwutIJ0-AwWYyAIJMea39sz36w2ryNXCUNOVgE35vSDuHFNletXN6h5GuppWrzFo2j1D3ItSo5owVtaxfb2icWAWugfNEE0SkOdknHAQcxgQbTHZgziKmes42O5Iuk1p0Wi0Tuu-PDuxH88ii56ZCFbq1fWCTdoLbYXbsJjauMGqPy89mpDuFbH32RoXLppAOt5AwFOLhEshe00QrsWxyBSPbz8rBYt13_VcxaTZ8veFnNJun-QraBF212eL506CnMu3GautjbEQjewt3k-aiGBBfN3pQ3rdq5uUE9aKci5npkRM4ADmAobuoVkcgTWiLTL91YKLIvdJDXlS55zMJDpQAvHMHd8VZLPAOvRgzVhCdSQqfiFcVoaBvkYrtQuVym8jGg_xE-OqTTcRziMmwEuNF82OpaI3-TSezBJwZqIxf0M9Z-V2hFB45EfVx6vFkiJ9aJtkhtQvl8oSYMTDUCxcvFMCZW39LDz3ir5XZo_q9Jcen13vHK9IqPS-OEAWWuu0kR3n9L8V3bqpnYH4WEadWsUsq3Rr1i6KwmYFeECC3LGCfLa8j-BPKdl7w6EqoEVrm1JL46nmf0qwb-ATGlo7sk_5BIZ2fmOhBWbw2T1XyXOd_vCW8qPiM3HPM_Gfse9mXUvlIK2xIIugk6T-K9h785BDnwsEgW-R21DjxXBaJ88AOtYASAucXSLv7Z5o7P89hGG2DBtSwK5aTlnmxRxY_lcK4xUnw4mke9Kyjt5E4BdBpZehC958GkKMoKQ8luEWSmCV9lN5Bn8JwDfJXlr0g3jIJEgzq7ISpPzxEqk90GW8t-Wl5CJBiN3XnRljBe5hoNa6L36eHAHnXqyY-h-h5wC5pD62xXleuCuObEMenq_hdDvlKTylV5lO43adM_ykRaFl26zxYUv5d8mco4Q8iNj002rKAQm_pZJNtlq6pRWQrybidBSBjffECnLnHTi7ysaz3f0Wm8O2P5A8QkDpPUXaq4kMfR9Je2xi9I4xWc_aEc5niaS98gnqwjtfBAPePsvp7CCWi7N-_jtS44w4LUg3dYE38tTeS4SLkTaO4jTyPG7lnQwbO2DB6CRbIU_KeGsuMCSpl_fKX4qC7GJhJH0D8kPbBaQP0cd-A8k7PXT9NaA6g0cpwA04RkO3jCsUnWu40U6YC-3hVEov_RM-IF6zgaOPLeejmghZZraygqQI8yjGr1HAK_r-HZsFaSthyGZLeuHaQBUHQoPTJzJFL96zyuhRvWSR7O4ZmxGhAuYVygLFz5gHLVHK5JKhXMUfRXjc1F85--hlfOSXd4DPaw123OtuWltkMtqKedDNj-vsV2Dk5HTwmR-jG_Pux1xHGpuz7bAXFKE10VaODcpFgNrh3fg4UJ8sXlHr0GT1E9ZR_owSMwyzeDUX2L60z6wFvaWlRpE_3wRvZW4zviZNGLeKETYCVHLANolfXsbYhVeCw594ALgiPwxhYGcHB2mPBwSokjZuHvrrulsRJxMfhIgMm_v6Y3L5Cz8jFQDRZ22xAvboZfsIwbkkd1muS-GrsWRtX6tBLKGFKrAWKs40hnTo56K3m6fdtwZu32WqGGi-KGlxjeFIrTl4dYuHzxbFz_9Nyo2g8EuNhmAurycoizFnxPWdQLyxVVjeqdVEOW95AKodR3gPkmFLC5fweP5DZTfvH0nAuzpXNLb9bzHGPqFsxHAnsQOZhwm5KBQ4cvFdJxem1DuA_jl_-Eoal0Oi0ydz42mdlI78Q9ZRjSsDFNrMvhCLX0yP_ttzABn4WE4huwgLh34Q6-V4xVaPyXRiL5485TjyELfe8MdFjpuPyX8SsrUJDdOUXPQD1BDtCNHT8ZGZ0V7utH9HIqCfTJ3dSB4h3w8Fc2UlvCuloJyYeT6iy7df3_EdUjM5IL5A9u3MdKWUtPfu9_4zPhnmjAp0llyhXgN85NS35sF1aw3EZJwRiE7fYmV0BalwG2osp5WEUYfIo7mZ9_pEEMY7hCw78z5IGmr1hWdXPIcvtgE5TD4u2p5tZGi-yvA3aF2k3sFhhBQ9Hhh9Yk1BzRXu7YNyOvquGiac5uxd_yul9kpLZlL0XYHArHSIPcOIHODZObz4CSGpjPFs90Fey0csV6It7ITLgMOdOnTIMG_u9jCUP00mPc6-CL3mDEkpGMBYnH_6qCKSPOv9QsBHHuLO5iNKpyvHWvzLE0TmL5bR5FxlJq2F9xpWyG2ueL1wYV7Fq2U1rg-wHOFTqcyampvkUn-NnbqzykorLF5T6Au9uq6A-qc8qDS7l9M43nh8spN8RoReO2YHkva0Pd1u_REjey596kTyadwXmdXdHy1qBFVSJhnPap5xEXv4Bg7qXIBDOBpL7O41ppNMc1WsyEJpLVAQRM21NQGY0j7GT1gjGAjeYv2JrYO8Pul0CNHh8HwTOVSl-E6QfJQAfBK6NebqgU1mFZazW8BWEOm7wdTsFe80bjrLtJj8O36yf3LH7KG-wO1PqJd_5KbkCaAbZytn08-WcgATpAqdF92SgR6Ld-t0bo33VWSl_ZGjl4mGiedThTPfqvTIXF07Qrx6Iv1t1rubaB9JLS-ytnxrEPTTbibbBtonbmSyppgbHm_IdXkQBq9NrOdCykpe_wVoJJlun6T__Q53rDEZjCE6gv9PThnfG5eiwhKkg2NjeGSJAfZfN4CZRTn0vPb9nqFuzxAZrPK0G7I5UJmfZJw_uQNGVJOaNdlHm9yYgs6ybSYAAxZn7OMsKP3F3XjYXle9mdDJ3RsFIpf28GWQ3pTrPgyWyatyXRDJ6COEO2L1iNAKO9O5Kp8ALitP-AyJuqwDuspei4UNCQ_bLP809KczmqZ6JTUGX-8lViHAbWcCBihGFx2ziCLO8RWdelpzy_V0OAYPyhCQGNwUIU7vZIEeueR8Q0Cw8oSPmDNGF1AtGQx8YE8OFikvXWLjC5xUFmcckk0Irn6x6M-6bdoPPPQdTnWsowu3YaXn4tdmVeWVyw5gzGmiq0mpNU0ejCZdQ-NU4hh2C_fTI__6naTbWGaDO47a67UHSn8QS7mj2MCkWevxND3fs3bphH6Z3SZu1sLq6fU0PG82OF93yyWJYGZC4WcR-I2OP1e8K13JPFX2NPOPZHWc1KtIIjYCfTyBtJKhtzMOgVz8gJMax9VCiCJsoefTSq90UUEVN7WXWQxDVd30f8EJCJku2AhET90APfxW-BeH99rVhiljJs1zW4hoT-tZsxI-zrX3mkHfI8hEjrFpD2k4fDKTC-PMy4JY4KY8Bu0rtBDJRjLlD-MpVUimCoOlNsSt2LbufatHIzWBxT486mRldDYJWkHVJJwyi7iRaJle8SO1U7vJ5RcSJvWJ4CGWvyN8i_HspMv1n7uzMy4H1t-BG4sVxLeMiG2ffxdyK6SUOHZzY8CmefaDUqrONc2rboveLCvJ6C6D9AgK8HXwrtsXKb1K8_Gq87xStGZ9AEYjesZdYSzOVm1ZrMNPHoPlNdd5PVXCrrBXIvrOokbh-ZNSKrBn_5JkWWkLsOYLP1ZJmZw1nwuDHAluYNGS78YRmKR2A-a7s8A5eT5GNNQ-onGYvbgQ3pRnCFKy760cLs9ZlA9_DSSzuBUa9w8UETBcapnSV53V46b0oEJwmxnYGNPkGa7oFhjL9VSy9CT71RtfTldRe8GdWTUmi40CZVIORCtyb4eB2R5muWGUnaxZBIJbXjVC7vTD840eRbDwixvhiRi6egR48KVVfixtg9ls1DPihEcacGFIxe-Jd7Yqfb6jw6V2Z6lcpE8U0c8uCymr421K4qStfZYAarYV82nZfS6A80LiYkCslaVuaCqwbNIDdmmcltHHJfFrzZdHCfu9GrttcA6Yg7I8BT1CBUlv2UOXZZMLdQjErZTgRZkQV1nlEyPIulh2SQnZy-KoMtkyJ0EpIiOoZ-ejMZdxu-zRuwh2KMxsWnu_dXw54K3qeEaqz60fgb_KKFk17JJ_dps_mObKJviHCl3FhqUQHGfECXyfMU4Vy7-okIaKYPUNYQgRSEfu6ncDSJ96TvWwD2LCmMZNsAxiHil4Qg10mpFYbOF33xCBXLrheuxQqOh5kTn_zl5u9eDtgOH37dCNj1XGf8_Ig2XwmXHtXimbZP5tNX8Xemn8PlsYVsgmLCibIFnpJviFaaCF1HwuxXRGsK5Tq6Uo4-W7HWRVzeOUaHrv2yQ0wDPcPmkd0-PaTggd1A8EoMJqE2JiNGYE_hl-T1jZIKduDvw3L1e6ZtWaOoqhK3TZNg7NIduVfHBQedCYyk9jCgB3nrMAxUaXos6R--OVN19v_3Rpo8ceJ2LDhqlIl-uO-LfPH90ERFDf_BnHyYE4uA1iYdEDgmTW6jZzYeZFnQaCgRIFcyAIgDD14pHswfg1EjRZue8WyQJZBo7KrtIeFX8HY0OCj-NICZq_tsINWaBZMN24NFuwyMYwhJxHI7dYVPudCWOgNmyXHAXSFpxRWv3pti970LigYr7jZ9F09Z_1i-tLbNbGIjGblcQgcKCMcWHOpivCY5gkhM1bxCWaFjHjMGfIsH-tSQ_kdX__I1WNGgctKtO0JIT_KQGQjcYhqFihSThfE6Dk_MRs-o0B09LD7ja5HFNWRjtGSFSM1lluj6V90QKFOrFoSxz16vcmY_rthFfgu4VlNQaMwsCyqClJ736JculB_61HqbEaXI6XEFnnn2khWj2wS0oO0Am6BLKCQi4f2X0MksrltWXFWsIL1trloUmCjOLtodHjZw8jqVPGv0BlBYTOPr6Ahuy5Y2RnuFs8i-u2oqAitbG9GBpNhBxl2MmKtBFXIhGR2JNVywHxwYfyC3-RFa_O2nTmOf3mnniF3UAUWYciky4l-HOpwwxaYylMWH5jHlrjTpdjYTF2oGk_6jMD4LamWfcpZFeWJFkl4C57xqiHzx9vJJFnBbXL51Tx0qNtSAsFIVXdG8Lf9IAW30o6x9nzTT7gdcvNUbQgRWAODq2Igi_lb_CHIdRAwy1BATGGOOD4cjusD0LobsNp0ia8s_SYg_MNYijBDpoTJDBWpAhbSY7W5IHnoxeCm4LB9JTH927jt1ngSYELSfxYvJeXlqArUIPZymg-gj-kkNvzyhdUKXUoxXpKMYsoTJWXOSbO5DRly-TgBTU1CSZZGkWBnyf5x2Z9lKIgg_2Ig3HPE9mDZ33zkahOLjsYeyc9bk45eCNDAXwO4SfVU3AEtV_UW83uj6ois4AIQq7ZfzIhhF9qnxwjKWchymHoybB_yTIX1pjkeoF4UASyu37k7RWOYtPxDRL_EowJj8p-nIPQRwArejxSCgs8BIlkQh6iiOjkitstoLyFd6DbOeEPUt07BPx1RrBO4_oMA_7sJ3hSg9cvOAWBV7NQaBa9xoGFU5VjRn9L6Z8xlbMMbmx83abIoivuyO_itdW2QbbPfTfloqwDhGnZy5kjfcGoWFV-BIt1KlbedWGPK2Iae-JozcFHAVpbgQJyDj-gWtceEFtRMQAPbh2kYKCr6mOj9-27bptXi3CPXo_8c8zVcnobbST4szYGHtVs7x268pGY17rf1Gw237di1AKlMywo1tTBCQg-Jerz1Dz0dGIjIyahQ5ozqVLw8cDvPzKdvrfwbGWCmUY4Zbn66EHjB0I4LQdniqOWPnJhTHb-uFpAUwJ9RWBp0aPf31ACBuet24P9AKmKQAtQLw-POKg0rb1DcjcHsSRRKL1ze8gArJirpEfUeWFAom8GY7s8rzDutMw1usxAE69jlpq112u4aTgZfjqOGgkHVtaC0QyvO17ubKMCOeINPD802RtRGrCTHThDU6TfIRPHpS8wKhnt0XRknMKbiZR4R2XUVsMIIqYku6yr28l0ovCTo2dGyLxET4QTYl5MqHogHvEsmZ9HAOWsX9sr2lT8VrUcEACjPQnEVFctxKHXS_25U8eOvvLaH8ntzXy_ymmu_jkzrMfNhDCcvcg90441h9UWsYaTqmIMXAvumqi6AZ4JYakM9TNy93qkz8j1ehst5QzkaX0LOsAMG4gRqAYmiItdyPkT_llpj-XEJ_e1kz35dVFd_qHcrwY5nf2RmkwqrKySMinoSgMAqc2Ebga-_EBUVLI4G1OARg9MAni-R893qkoCLPyVt44j3YZ3mnewPmTIy_jnM2uur8IU7q39-7fjLebFZeqPPEr16N4RLSh-82AUUutOhJcgJDsh0NFo7WmBtBvzLknxGNxBnNPfQOI_BmhHvwkmfUaOsh0rg7QwPWTKskCbWlu8gKkd4I5gUEQ75VKQQhJshq-g7V7LZ8RYzIur0zE0fgE8GeVF4zswA3Y_Y2Ra8flYt36zRp-x_30dHRC6SbxRVIDf2uvoTJS-afuSMQyy1S8BQwDFjsmiPYQGGX4qZn91KzyAwGER3GNMDKhxzHxqZu6Hd0RQPjJvhAnzbNp5s1Rbl6FPVAE_T_p93WbMBncxeoHoztjyOWEY5Vv-ntpd65b1IQTrcNLSrDwFfgUvZBgF4aewpCrLQDF78eowbo_JB8DNdzFgUbjkG1zaSWPymz8XZDFxBMAlk81SE2nkOaPuYLbjlVBwbR3A6cgYO02cpAluJ2vvT9KFUPN-ZYA-PwXDH9k5QmtZausfXekT9bYbN6GHsfyEOQDB5pqt9G9YEy_3tOP9NWeLemY-k8MmWNFtcJ7HV_LO83CtXcjMpGW_rcmj8LM0OJAmaI4bFEdNzzcwL3sYz7WKOw3CmspY3s6IUf1UDn6Aboc2aUIILk9soG68XKjC1KksqgumcgWwq76Y-OCnKbRNFq6103q7J8B9HAsmlJix2qlCAfLSw8o_5pCGRgdIOffKZu7WUdI2PaZwHoiDhQ6Vn5A1v58f8y5DODj3xq0cYIQ9tJ9DYV9MN3izPUuz1tkefaufN6K_2Vv495FyRsV-KTNDKENe2XRxJf7Hd3Rkkww0Fju6-BbCYPLorwCHhP2bOI3lcZWVaRUd39d1M1uhNj5Tzmleqw7cLsA0gRbYjpFGepNS8Z64R9WvoZoEEyZ-wQTasjmDu9_U8nwelsq9HKKBud-fBTiB_JreVpj75LlcsJpp5xD7VbOMCZ1i9IDQeVje7VbcrkzBAyF-41uYUqvUjnZ1-8sFf1YVG0yFKT_5PA_SGMj8_FQI8oxq92dDt0UnZaukPVqSFcNZ6Do59kwavzWsCFsFiM2d4J0uHNnAuNcuRA079nEoa9Y314xSdXPI_Kf4R8aD8dW_VKuz8g3xJO1Z1NX0uv8ij04Uj-UXqhq5qZaCpzlm5k8K18j61YYo2odC-99MypifAzXmXCOvbbfqs3mqpvMAS8NT8u1GwR91GHWLKW7l0u8q3JbQqbu1dfcd8mCQdciBbiIUAwSv06nEjZDJEGnQN2_sqczcAsZTp0TF1FX7mUCRWGo45D0P-YY7_0T3el11k3SMG1CkEkNpAnqJ5_B0juV3p8hj5AMYbdQR7Q-iFQIfP3M9RXtByDEfNsQ2tjNEOI9Jd4F4s22eCGqcyPeUR7U6p3C5E23ySCyMYiJ0p8LMIRpKJH_3eHaSxz96houPQsHYZzAhH_7fi-J_vqdxptbZ9u1zWN_ApTUWwuPwg4oR1ohvgt_4kYfGpw5fIoier2CEJ3V6TbsFDn-9nI_vjn-zs6KT9yNSP68DI9JXhhdvpBFypmYOZQdazw8gHgt7Afd17WI2iRMYmrB0JiFWAaOz9h6DwUkFgOIUwGM7aDhX2IGzD9o_FG2XpF2eIiKeWTWOUmLPbbpkpSlTEsErl8wYF2si78yBJHknvB-fGUorIl7f0snowZCToprWhIRcueKNNiWYlFfURDUjUXKcXHoHyZ74zNxKKgAWcyEUMcVmfiECZk6MoF_kRKfpSiiIPDtbr_cyv7irKovW7BE3K0-vg40fz2pfUG25iNZbfdCg8jB20cQrRFB8WYiGMHFxpZH-rC2jdKdnSBbYt5XgtVO1i8nAgQOBianpj7WqmU_pfUxhDsNKqmArviQ4Q25WP1MySTdtMRMT4KaeCk2zoQTyeJ7AdMw3hK3hOSKxSQUIry-6CNntbOx0WNLej_CZX7rHIq1wsKmyIk0PdLkWdRH1gRSFUVQXV2G8ZwKZuPqOiC8rqeruSWFSR73U3cUIMj9mxiOaXZ92gjAobqn02WDTLPlEa_hg_FlOXaSW1u2jr3vJTaeYru0JFeAeNlBCfkSv-7RNo2DqZJVw72vM6CNYZd_4behvY8ZdeV6yrAJrBFZA7-Dd1WNrdy6ZML5ZbeOv3g1u-81J1sS3lgmhXzSxaHwc5xKCAyF0Ez7CzfWxI0Kj9AVyUZ-08vJLAWRAcmJfykV0rueIa_X8B97TSpjghO8wfsn_GQBuwMEbrGoOd-0yOXvnLS6w-MKy0LTfaC1OhJwLHqjO-gRIPK9TyzFvaxlHJ2IFyTrt93MRsAhBlu4pFocfyowy7Z525-fHmXdgWkoP-OS754sK_Ni01zDHMzHH0yskkTLJGY5kpAevCjw4ftDFhBPiYgdqmT7zU0EXgXO8NNTEuw0UbSVmRxJC9Dr4NK1HQUeeycIshvwPePhwUtO3nv75FieGTj9suKKWz9AdWSXGJ2yZadnRB9Ih6GGDAJjVu50sDIbSkuxljDuG6o69BL0SgbcbFdYxUo38PVrANSut2WEHK3blGh4E5bP7Lu7vWYof8a-xmhkzuQLc3G5c7971VGf7wCQXWMc5HAmXlKfdytL-gY3q1ZfhwW7tV7_iqd2gLVB7JQZj0SC6blgfFtWqSE-FhNOWvE5FBvm1M1jKvisk8DjuqT4tSa4N_DMhZCzk_Z_hqF9k2ObYnEiza1MmqE7KKnD5dDtqgbUFHQsLnyD6KRalyB_VLDkMvCzd1RcF96QQbrQSz1YRGxHep6UDlkBJtx85I0uFdkVvRd1nbh2K93zKutke3ylbj2IZacpeYeNQiyHe2Eyw9CznzNYrCrXlnPdGM7xLvT2_Wzen7QIDRx9H9SDB8UCvF3UVRFn0NL6kq7BGP8rU-uhg_Fe3fzUwul6SJY_OMXly_P57XUX23_EPlLmbzYAoxFKOrNvqwc3TnzVD6Ob0RUsn1rZygALKeYAMgkxKjrOFjUWZGZojcJA6C3zWOjRk4UkPBVpamVO1kcfm5wGahToilwH8gEIp3EevB7fID8PkhKBvMWOIPrrMsZTJnwjBvJ_eFT-nk5hmfctk4J0PNPQn-FbIlfs6SAUZBmlSHgn7RmI6PRUfYRibNwSt4jPtoqpQQyw9gfJ9Of1_rKXFleO5Hfpq1bIzkTQhi8nhtU5-72Zr32GIqSAufAS0YLCmaN9oGhG-MmgCRBdjYcgOhYCXO1X4CNu5rtV3VkGL2VKMc4F0nDQf_MteVwqjjUmjY_wVUGo9OWReBjTgRzEwB8ho0jpTgJFoAJCwCTj1HprtT7NB4sSbTUa-_bJti6S3r6WBbPyUzx8pWbki3PBwWIJ-EB_MylGb1jSioJ18zeCMmywDqh915GUVKzycycvdTm7-Bs8i84AbWzisPKjo9csifyelICVC6BVeEl7HBwkyEZJQyyhy2-PiEqd9nr0P19EIvPawLGKaVQpyFimS3Rs6YCAofDc3lWSTVH2s0KVgqBQXeOYKkUvSZXFsbfxwfuV3E0BMmoduZVpr4loxRtn5zqTOkmA0_9oCs7M8moWJA9XyMeLn68mUvZqTzBjoFG5fFqTj5wK9l9zJ8m8Hpl5vHviGeGLMSIogG-GLk0UkjlF0aWnRxLlbCY5nOGiYguui_NrOe9gUsqye8VlYYZDnK5biKWGtIraD0znO6P-EaDLvllSNk1fm_vBWLlM3OB3Vhd7Fvoce9n9B0lFfIm54ShkJ4YVMhBT6CCuUEEaWv6by-IlGff1-CIHpBdStPsoa-si828fBP0MSsYwhWpXrG7bUT5TtUywlbuQeGNO72BKL4yvaPAs46LWoKU6yV9RP-Ms-2LD3EfOLsYlNXckl_AYzzQA8mw_cUim82iKYJr0sLzx1v1GBmsPErnc2jApQrWm6n_3rGuatSLOZQuUJV6nKQ9j0duZiVTNohOu8nJdKO3YlE888_boivsGlxhbNIxCB6fqlNNpbbXdEhxVu373pLVpoOvPPkhh_GOAiicR2vYwXDFlv1711LuPp8uQ7P8L8yJ7rQUbOVvDcKS9hKcT3WTkCdtGiPTrADxDCcW5UtN_y_P4bakofJz_y_Vhf5dyuMVH1aAHkDgwp6jO4rliuOzxrDnJgt5kSp5ojBOwhqEbLie2IkUcMr4dldrnV3qoJZnvTz6Nq-ISLEuZcu0w79nwnh3VM73re_6KHCWu2vkSXJm66Z7eXhC1h9G7t6t934_1UHAljRIumkuBiPYTfOqOEZTNGxm-TjraijrPEo65FM9fudV0aiQV9VxynAnuDsLbDLp3EuRatILrN2knkyOE3z1gwKGN1HEMWVyPK76T6uKzBiQgp6XCSfndX1Bh53UOi18corOGvLFAUJOlMRj4Rh5vv7skg3f380mQH4HX4iPgFI0jAp-3Xj1jI5274RCedA_aBnkOnbSW4_vmKH6h3f3yurOZgPXkIUDTACRzmfpUjtK4iFj1HAV30yzklsqJTPECK4hmYPWqfDGCnN4sozRRMEm9ozJTKJTJARxQ08v2FOK1b2NmwvcA9bV1IuOAdRLYXx2TalfT6bg3nF_VsjEFNGk8IijsUWJbE1TGYwIIrTeXYmxj8WvHoCVHjkmXdLLnZLnP8U-xDKkCYAqHtz9gb_mv0rg81_mnrzumGfp3GJI6b7knVCv-ZClZlks4K6IuraM3uLrjs5jW_PPvO3coUMYIE5LSQZtGSjztNMDdzh6M36_Kux9DXvbZGmQ1Cj5sR-19AxfLTMaDEWJKBzgLcc3E1mnSDi5658h_UPkQ0XpshFLuEGOHWASkQMgPyMxP1-w0U_I6_W0KUK1wVK-ZstTiZ9FoAiSOA3h2aZjDsF1dN70WD7d0lEkDZE_1aKufCTrrln0R6QSS-z00wLsMJRPFkdJGO-iSD_HhKhFUnhcSnh49ikGfkJut_L5MNWX4IG7go-V9995Vn6IOhOirVUHKOdUW3Jr7YCgy3yg5dey7tH_jx1k3XBgN2ywpx7st-BWpzSzGxOQKPc3vrXCmGU9vWo6blsb8NrmKPIVEO34W4DMrhF-KQ8jI8KYrz9o_7lpoCOH9du9wE88268Rp_aR54w3j5lEcYidz_ruKLiVnOI2tFBXc4J_TTc_5Wec2pOtSw2dB8V3ikd3wliskSoCxvKm3QZztTb_q68PVhVFdcYK-eN0dL7kCdqfHefqOweLcs41DZGSTLRjLpWqkM8I3r67MMu4FXmFYfynAKqo9PNQRB9UoxqLbX758Xa7EXb3UKNclyOCvtOFhuDRKYzRVyyMs4wHAYsgyfG86uWpg8Do_vZAI_pEm9hZX7TWODpBsAzXlxislR9GhvFOcOi6bapWPI5Mr4jCGUdySZs5yQfe8laT_o-wSoO2nokjEqjmHHusdvlE7SBrqBGh1VYv4-SzZdCw_ZsLfojvT2pOhkSR4rrXlBIU8-nH2u22Gk9XRzP0H5GCBJg3hecy9x3im7W9eG4imogMC0D_wnl2EykJm2DXlirTs_oherzNtZkizsc2eoDa6MHj-U7qfBc5WXmSJtB-5NEZC2E_vQHhGyld_-I-Q4sK8ofTFFgDmSUCCI5-WY0xa7n1umm3z0kIVizkX4fz34Hcu8QsKXeN71yDkOUm77f-isqZ6jqvlyAFwaQRaFUoee0UyKuVNq4EBFCqrgAZEg-4ZsNFHHjj51LUomjo3kjQ3dvM5NyJiav6xY6SyIcXlSGFCAOiRPqyokP6S_Xc-B8wGtYKXFHb9qdywUgSJZ_YDkbLh1e20o45vYD7Xab-wLdLHU-E4ZbrUWiWvqcRANljc7mlduVSETD6U9Rp5uw50jP-c3nqGW_Z1wVCjwOCggAsGxEh1XJqzjCC3Y5R7vbtROpTxkgm_d8ALDBH1Gq4w8NcEieBxY3duybT-33_1BuvqKiseL9HfYUdRBp9rtKSZYJ03Ylo7Tvc9PQ6IOygNeu0XGFd2hyS_3Z7XMSgMTC3jeExi5cTMWzileCYoutVkT6psBd6jnkKtUF3JsAyAcJWZ0D1058NETeP-84aPp6B8q1TxTB3VXsu9Ns_Qz8qlZsAsfqk8gehf8VcXTO7yYPWi5z6ZFJzUJgiyzjtUVJbHhjkIT4bGDYzmqcKmnRB2fWz8Ifc8qsygjWTnqHh7XfWE8NHW6lhib6EI4hFFL7MTOh1PeEqB8gbiij0QgESegq8CuiYsf-JoCTl7ukqzXH1ZQ2irR8TccrU4poTqBc68jK1GG03RLnSoFg49lhyvn4EbeBJyxCzM-eIdYxT4K7DDxRhIgRwkgye2LhJtW0Ek6mwnqnfg5vcpz-PyaGNeMBCIVkhTfQgdaz0iOTRgsmkQezw7l94hofXMTM_tcJ225Gpm5kbEEx5bihgWGfmt3dFXnZHCyf28TFV0FR8iNwdXjEe9c-tW8Wu11w5IT_aTGbD3Of9o2sDqZWsRTHetLCa0cSiu8JAaP-YxDaIt8dWoZBElgvMKU07D8zk5ZZmUlc04WhMilEMytLXnedhkS1LDNkkIczH9Q70BlV5_su3iqu7CiZqndbWtxFso6m7sJbt8s-SuNi08ylX35l0pl7r0ADaivgA8aKegODee25CfeewB2tMHsqgb_LM83XKMZu8kt5d_zyDm8lidXssRxNdfk0itciWgZ1I8IwwF4MsODVq2Dk6tRm_P4NJ74zq1ch3YXre_ZnCoo-AojIpiZse_Xhna2103FvS6xDq7kGLbp9bWacuvN7yKrOnUsMLDwBNeLk4kv7vN7p1jfJL2z7fioC4BuJePtkW9fAaQnizOWD4mhnbyGKCAbLsroBIg-IFjmdo5zYW--Dt3_U7D6V_N6bFGR-ZrYwT8IVzS92k_0Yj4_cZitsGWtsb5_zjU0UpznulEptvJx3B6kClNgBlO_2QWA9NeXFU5dM6NvPk9SMas-jf9fmVWz6ASWIpbwkYYCJd585CVxgjM7yaJhfzsh-gg4GHtyHytmOy0jyzYTIS8l616HmkIhgBvX4cNwGMqVTbdKDrDnBYOKt4mBe8DOwnGNjmpDEHh3cgOCdFxTy2LX4aH0RovIAwsWxzv5IPYCsauep6cEB0DjgISpVEhsiDmhMXtt4Y6fiGPEGW4-WYptvum_27aHWoCs2FVEWCKOF9rU-IpBduDDtWsm9v314OArmzDsZRSx0wQmYgi161Z5v4cKVfh-RMgRtvt0NdMwO-ETbZQlIVLX5Jsuq-NbjKTHf2g8SBLkVJ0xgZlCGLMiGIT8QME5dXVlO8YiL0GioYlVGMw7lhkR2VD0YbzvPmG6zkHJyadXtuRhsyMqhQlypST7T6dJq90nQyJYELf7Gjowwu6LQRBTrnK8DV87q_cmlz0b8Wxl7CK8m0Pgd9iMpfRfrDeioX_CtcapHfG2bDe7ahUxWeJFXbt8WWRQ1cxZL-5Wr9vWLrzr8AFNzAo23Q9nW2F0n4iYEgHY7FzMZFO_GILFf6C4lS8BBYavSslvtT5hMX8PUp6H_tiJiGDTiiFFHfXqmnciab7BFptwyhoEJe9R0LQoQ1R-CrOWxuIWJxHWN_zJrviQoCt8UYb_aWElISWDCjAcg9XeS71o60x6UBMDlBBTiWm4WyfRxAv1uiRMX0eXlcn3YyZCz4t3wiwVQI7ZZbK23JkD4nAby1nyM-BYrDSwbZnIT1PubtAo4_SvLPb153elSKaOdRWsudnHOvrSkh_vTtkasYtZrHl1MgQduN70Q6Mx84XmELwQP7AD2thCcjY3xTOGBRRrjOy9KGxGsqHFTvw82eEGJz7ak4pkNh5EprHFpIAvBPdJGf2sV8pE_vulu_-fvDXaF1FqsGqDQFYirMVg6bHAJIHPMP7l1wV43WKuB7eefiFMG-9rA9vMtrfoVgGWs4Pyz4vLyyehDdIgLHdfyp3YGf1jIpcHvS1md1n1gLgedzMyvmCctNZ-mw71qE2IQ1v9x30nxgJRLzB8TEjE0cEdqS1SqPccrcGxbNJqL9jbgrCPxHIMNk1yhWEO0XsuZynjCnvWtrbwrmnRpJGg1LSymlQBw7MZNwyjeKSegnC47QsMoI-mG0QO5VE7_crPKsLIMvUyYQ9s34TqbPX5ebhlsu-vzGmdoenxfZuTpOGEem_IMZHxXCi1-S5ydArStQ-yVPbjOaasBPuVurOX5AfPdXmqNvsMPV1JZ2bCVcgjcEt_DSlwxjkSpOb8BSxR335Rl_0fLEE0bXetHdN1FW7JBiRdsRJh4vrRdO5me9DWltXLQ_FvYBmlFf4I-0O_qxOVUAeDBiAQbF7j-zShy3Ig6C2T1bpswp2GDPY3M2v2SkZfIsRcf-sBOVuIMDFXP1wC20JzxW1Rh4ibeFJM0_1P9pWMBn_88kt6zweaM_s9sRn1DcKhW4qMCdt9kqfz2l4bO16ZRT19AYmd-TkdpaO2pUIU24pSj-NP7S9OsfivM7jGt-zUXJ-XUTtwyEYQAxjke_6lHfTluQDjgY5ayX6hf_WRZjcI24-FcVaOwOOXwb3Jxr5LgL-60yc8cVC0Kcvr5ARjaJF5kU2TqoE4gf-92gITUFfl0U76tchIo--I4Pzfs7RUS26DVuR5DlJevSb6uYzvsPiSSNR7RsXmu-hhhF_Rg280VK0uXIp6t3aBv9VgkAjNirPdMkAi33oSLE0EaimBBhUZUN-TXHdVmRRahdXezcBppS35QDjHcEBnJrvkTqccNgdoIPclS2-k6MKHOJnMQIUUaFBiiQD_5qCXSDApYJfoiusRTIp1GJzoUPQSYWel4Dvsy0s-ovuBDLUn4G_J34uoT8Mi3idSFv5yRAysLwJt5zPPuYeD6VlT3E1vqJjJ5BC91CDnVZ4RGySbVI4cwVUyn1kIEln6CZpaqIOFjOKohjzDRf2CEKA1YZdH1iqInsGirDmnxNKZ97ASvslOOHu5-BWBWT6jy5H3-eK5fW58eqpwW1F7K4YoH8bIKIkOtjVILkS9RUI727A3MWLutc2ZQFvcJr4ngKq0ILAMctv2KkpAo7zYqOED8umTcnvBv8nb0pJPzhLINxvoFXx1KzAohTcXCnaAzYd0CVD1YjWYjY4PlEDaS7ZHzr-D-pUTSEy9wn5n8IbkvWxilCmFJhJlGZ4c4GYnkjdtMhU1HxNO5LQoCSMrsb-XZX6FXv44iFTDIlE_92m9HrUU84VUFoq_F7uFXaHD_QZWOGx7_XVkni-Qq6F_3PbRgdpStVC0VieiJJf3lAv4nzjD9YTZyh8ZyUhIQgPDEjYgeMTrs-75L6RXrCBqo6GXoV-u7YcYMHzH1rwce-fAZmPRCw5RCj1G2prp3r786hjUpfP7TgglTDCbdHpAKHjhPVul6lFo_eeDLuVEQu2kSUzwaTox__vtBOt9hmLaKPlFh9I"
+    },
+    "snapshot_epoch_0": {
+      "what": "A snapshot under the epoch before",
+      "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+      "version": 5,
+      "epoch": 0,
+      "nonce": "r7fzrtmItNRnZslW",
+      "plaintext": "_9j_4AAQSkZJRgABAQAAAQABAAD_2wBDAAgGBgcGBQgHB__AAAsIAAgACAEBEQD_2gAIAQEAAD8A0s8g_9k",
+      "sealed": "BQAAAACvt_Ou2Yi01GdmyVZMFTNotqyS5wRNbamjBoOq75ogxK7YyXBmJeCn1bIkXRPBRDvhRb59ND1uTiBn1dWXiWmEVgXIrI3WFKTjvxcuKV6DVWmbiFm-3h7mdg0"
+    },
+    "empty": {
+      "what": "Nothing inside: the shortest media there is, 33 bytes",
+      "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|clip",
+      "version": 5,
+      "epoch": 1,
+      "nonce": "5iih9m6t8aMCueyb",
+      "plaintext": "",
+      "sealed": "BQAAAAHmKKH2bq3xowK57JtmafFwF2D_XozAf0-KB-oP"
+    },
+    "unbound_v03": {
+      "what": "As builds before 2026-11-03 sealed media: 0x03, under petcam.media.v1, bound to nothing",
+      "context": null,
+      "version": 3,
+      "epoch": 0,
+      "nonce": "s54GlZi8CSp0iV6M",
+      "plaintext": "_9j_4AAQSkZJRgABAQAAAQABAAD_2wBDAAgGBgcGBQgHB__AAAsIAAgACAEBEQD_2gAIAQEAAD8A0s8g_9k",
+      "sealed": "AwAAAACzngaVmLwJKnSJXozOrT4O0po6MXQSIe7sDQtKR5hXz1aQFrgSYKAU8GIcNPctrKsjfZmGCB9rq5rLO686UCRxOI8vXpACQ16KyZLG1IkOXif3XLT_FihJWqs"
+    },
+    "unbound_v01": {
+      "what": "As the first builds did: 0x01, no epoch (epoch 0), under petcam.media.v1, bound to nothing",
+      "context": null,
+      "version": 1,
+      "epoch": 0,
+      "nonce": "id_8xvq5oxvVJzj9",
+      "plaintext": "_9j_4AAQSkZJRgABAQAAAQABAAD_2wBDAAgGBgcGBQgHB__AAAsIAAgACAEBEQD_2gAIAQEAAD8A0s8g_9k",
+      "sealed": "AYnf_Mb6uaMb1Sc4_Sod7cUU5fsiQeAYWMRAZflqF_rwgbvHMgGaK4VJ815geWf8EpUgfqc7N8OLcxozpg_sfHz0JCdEZUYrq3S468GsbCc3i4Ul_75Nu1n-8Q"
+    }
+  },
+  "peek_frame": {
+    "how": "Before it is sealed: when the camera captured it (ms since 1970, u64 big-endian), the JPEG, then zeros to 32,768 bytes. Unpacking drops every zero after the last other byte (a JPEG ends FF D9).",
+    "size": 32768,
+    "captured_at": 1767225600123,
+    "jpeg": "_9j_4AAQSkZJRgABAQAAAQABAAD_2wBDAAgGBgcGBQgHB__AAAsIAAgACAEBEQD_2gAIAQEAAD8A0s8g_9k",
+    "packed_sha256_hex": "b32bc02d027ff193045fda4ef124f68d24abe6af05a44d97d80b907192ceb0cf",
+    "sealed_as": "media.peek",
+    "also": [
+      {
+        "what": "A frame from before padding: the time and the JPEG, nothing after",
+        "packed": "AAABm3baqHv_2P_gABBKRklGAAEBAAABAAEAAP_bAEMACAYGBwYFCAcH_8AACwgACAAIAQERAP_aAAgBAQAAPwDSzyD_2Q",
+        "captured_at": 1767225600123,
+        "jpeg": "_9j_4AAQSkZJRgABAQAAAQABAAD_2wBDAAgGBgcGBQgHB__AAAsIAAgACAEBEQD_2gAIAQEAAD8A0s8g_9k"
+      },
+      {
+        "what": "Too short to hold a time and anything else",
+        "packed": "AAABm3baqHs",
+        "unpacks": false
+      }
+    ],
+    "fits": {
+      "how": "A JPEG fits a frame when 8 + its length is at most 32,768; a busier picture is encoded again, smaller.",
+      "largest_jpeg_bytes": 32760
+    }
+  },
+  "opening": {
+    "messages": [
+      {
+        "name": "signal",
+        "of": "signal",
+        "holder": "at_1",
+        "context": "petcam.signal.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c|5e550000-0000-4000-8000-000000000005",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "command",
+        "of": "command",
+        "holder": "at_1",
+        "context": "petcam.command.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "status",
+        "of": "status",
+        "holder": "at_1",
+        "context": "petcam.status.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "event_details",
+        "of": "event_details",
+        "holder": "at_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+        "only_current": false,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "device_name",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "home_name",
+        "of": "home_name",
+        "holder": "at_1",
+        "context": "petcam.home.v1|11111111-2222-4333-8444-555555555555",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "alert_prefs",
+        "of": "alert_prefs",
+        "holder": "at_1",
+        "context": "petcam.alerts.v1|d0000000-0000-4000-8000-00000000000d",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "invite_token",
+        "of": "invite_token",
+        "holder": "at_1",
+        "context": "petcam.invite.v1|aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "account",
+        "of": "account",
+        "holder": "at_1",
+        "context": "petcam.account.v1|d0000000-0000-4000-8000-00000000000d",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "person",
+        "of": "person",
+        "holder": "at_1",
+        "context": "petcam.person.v1|d0000000-0000-4000-8000-00000000000d",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "device_name_not_ascii",
+        "of": "device_name_not_ascii",
+        "holder": "at_1",
+        "context": "petcam.name.v1|d0000000-0000-4000-8000-00000000000d",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "alert_prefs_empty",
+        "of": "alert_prefs_empty",
+        "holder": "at_1",
+        "context": "petcam.alerts.v1|e0000000-0000-4000-8000-00000000000e",
+        "only_current": true,
+        "expect": "opens",
+        "why": "its own context, under the current epoch"
+      },
+      {
+        "name": "name_as_another_devices",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|e0000000-0000-4000-8000-00000000000e",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another device's name"
+      },
+      {
+        "name": "name_as_a_status",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.status.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another kind of message for the same device"
+      },
+      {
+        "name": "signal_for_another_session",
+        "of": "signal",
+        "holder": "at_1",
+        "context": "petcam.signal.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c|another-session",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another session"
+      },
+      {
+        "name": "signal_turned_round",
+        "of": "signal",
+        "holder": "at_1",
+        "context": "petcam.signal.v1|c0000000-0000-4000-8000-00000000000c|d0000000-0000-4000-8000-00000000000d|5e550000-0000-4000-8000-000000000005",
+        "only_current": true,
+        "expect": "refused",
+        "why": "the sender and the receiver swapped"
+      },
+      {
+        "name": "signal_from_another_device",
+        "of": "signal",
+        "holder": "at_1",
+        "context": "petcam.signal.v1|e0000000-0000-4000-8000-00000000000e|c0000000-0000-4000-8000-00000000000c|5e550000-0000-4000-8000-000000000005",
+        "only_current": true,
+        "expect": "refused",
+        "why": "as if another device had sent it"
+      },
+      {
+        "name": "command_for_another_camera",
+        "of": "command",
+        "holder": "at_1",
+        "context": "petcam.command.v1|d0000000-0000-4000-8000-00000000000d|e0000000-0000-4000-8000-00000000000e",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another camera"
+      },
+      {
+        "name": "command_from_another_device",
+        "of": "command",
+        "holder": "at_1",
+        "context": "petcam.command.v1|e0000000-0000-4000-8000-00000000000e|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "as if another device had sent it"
+      },
+      {
+        "name": "status_of_another_camera",
+        "of": "status",
+        "holder": "at_1",
+        "context": "petcam.status.v1|e0000000-0000-4000-8000-00000000000e",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another camera's status"
+      },
+      {
+        "name": "event_at_another_time",
+        "of": "event_details",
+        "holder": "at_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600001",
+        "only_current": false,
+        "expect": "refused",
+        "why": "the same event, shown a millisecond later"
+      },
+      {
+        "name": "event_as_another",
+        "of": "event_details",
+        "holder": "at_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f1000000-0000-4000-8000-0000000000f1|1767225600000",
+        "only_current": false,
+        "expect": "refused",
+        "why": "another event's id"
+      },
+      {
+        "name": "event_of_another_camera",
+        "of": "event_details",
+        "holder": "at_1",
+        "context": "petcam.event.v1|e0000000-0000-4000-8000-00000000000e|f0000000-0000-4000-8000-00000000000f|1767225600000",
+        "only_current": false,
+        "expect": "refused",
+        "why": "another camera"
+      },
+      {
+        "name": "home_name_of_another_home",
+        "of": "home_name",
+        "holder": "at_1",
+        "context": "petcam.home.v1|99999999-2222-4333-8444-555555555555",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another household's id"
+      },
+      {
+        "name": "alert_prefs_of_another_device",
+        "of": "alert_prefs",
+        "holder": "at_1",
+        "context": "petcam.alerts.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another device's prefs"
+      },
+      {
+        "name": "invite_token_of_another_invite",
+        "of": "invite_token",
+        "holder": "at_1",
+        "context": "petcam.invite.v1|bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "only_current": true,
+        "expect": "refused",
+        "why": "another invite's id"
+      },
+      {
+        "name": "account_as_a_person",
+        "of": "account",
+        "holder": "at_1",
+        "context": "petcam.person.v1|d0000000-0000-4000-8000-00000000000d",
+        "only_current": true,
+        "expect": "refused",
+        "why": "the same device's other sealed word"
+      },
+      {
+        "name": "person_as_a_name",
+        "of": "person",
+        "holder": "at_1",
+        "context": "petcam.name.v1|d0000000-0000-4000-8000-00000000000d",
+        "only_current": true,
+        "expect": "refused",
+        "why": "a person's name as the device's"
+      },
+      {
+        "name": "name_under_older_keys",
+        "of": "device_name_epoch_0",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "stale_keys",
+        "why": "a name opens only under the current keys: a removed device kept the older ones"
+      },
+      {
+        "name": "name_under_older_keys_v02",
+        "of": "device_name_v02",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "stale_keys",
+        "why": "0x02 is epoch 0"
+      },
+      {
+        "name": "command_under_older_keys",
+        "of": "command_epoch_0",
+        "holder": "at_1",
+        "context": "petcam.command.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "stale_keys",
+        "why": "what a device acts on opens only under the current keys"
+      },
+      {
+        "name": "name_while_those_are_current",
+        "of": "device_name_epoch_0",
+        "holder": "at_0",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "opens",
+        "why": "while epoch 0 is still the current one"
+      },
+      {
+        "name": "name_v02_while_current",
+        "of": "device_name_v02",
+        "holder": "at_0",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "opens",
+        "why": "0x02 opens as epoch 0"
+      },
+      {
+        "name": "command_while_current",
+        "of": "command_epoch_0",
+        "holder": "at_0",
+        "context": "petcam.command.v1|d0000000-0000-4000-8000-00000000000d|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "opens",
+        "why": "while epoch 0 is still the current one"
+      },
+      {
+        "name": "details_under_older_keys",
+        "of": "event_details_epoch_0",
+        "holder": "at_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+        "only_current": false,
+        "expect": "opens",
+        "why": "an event's details open under any epoch the device holds"
+      },
+      {
+        "name": "details_v02",
+        "of": "event_details_v02",
+        "holder": "at_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+        "only_current": false,
+        "expect": "opens",
+        "why": "0x02 opens as epoch 0"
+      },
+      {
+        "name": "details_under_keys_never_held",
+        "of": "event_details_epoch_0",
+        "holder": "only_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+        "only_current": false,
+        "expect": "unknown_keys",
+        "why": "an epoch from before this device's first: it never had those keys"
+      },
+      {
+        "name": "name_under_newer_keys",
+        "of": "home_name_epoch_2",
+        "holder": "at_1",
+        "context": "petcam.home.v1|11111111-2222-4333-8444-555555555555",
+        "only_current": true,
+        "expect": "newer_keys",
+        "why": "sealed under epoch 2, and this device holds up to 1: it fetches its keyrings",
+        "epoch": 2
+      },
+      {
+        "name": "details_under_newer_keys",
+        "of": "event_details_epoch_2",
+        "holder": "at_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+        "only_current": false,
+        "expect": "newer_keys",
+        "why": "the same for details",
+        "epoch": 2
+      },
+      {
+        "name": "name_once_caught_up",
+        "of": "home_name_epoch_2",
+        "holder": "at_2",
+        "context": "petcam.home.v1|11111111-2222-4333-8444-555555555555",
+        "only_current": true,
+        "expect": "opens",
+        "why": "once it holds epoch 2"
+      },
+      {
+        "name": "nothing",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "unknown_version",
+        "why": "an empty string",
+        "sealed": "",
+        "worker_takes": false
+      },
+      {
+        "name": "not_base64url",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "unknown_version",
+        "why": "the plaintext itself",
+        "sealed": "{\"name\":\"Kitchen iPad\"}",
+        "worker_takes": false
+      },
+      {
+        "name": "header_alone",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "unknown_version",
+        "why": "the version and the epoch, and nothing after",
+        "sealed": "BAAAAAE",
+        "worker_takes": false
+      },
+      {
+        "name": "cut_short",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "shorter than a nonce and a tag",
+        "sealed": "BAAAAAGOGloNPTuYtcWWNU_7pTQ",
+        "worker_takes": false
+      },
+      {
+        "name": "last_byte_gone",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "one byte short: the server can't tell, the devices can",
+        "sealed": "BAAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Q",
+        "worker_takes": true
+      },
+      {
+        "name": "bit_in_the_ciphertext",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "a bit of the ciphertext",
+        "sealed": "BAAAAAGOGloNPTuYtcWWNU_6pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw",
+        "worker_takes": true
+      },
+      {
+        "name": "bit_in_the_tag",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "the last bit of the tag",
+        "sealed": "BAAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Y0",
+        "worker_takes": true
+      },
+      {
+        "name": "bit_in_the_nonce",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "refused",
+        "why": "a bit of the nonce",
+        "sealed": "BAAAAAGPGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw",
+        "worker_takes": true
+      },
+      {
+        "name": "bit_in_the_epoch",
+        "of": "event_details",
+        "holder": "at_1",
+        "context": "petcam.event.v1|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|1767225600000",
+        "only_current": false,
+        "expect": "refused",
+        "why": "the header's epoch changed from 1 to 0: opened with epoch 0's key, it fails",
+        "sealed": "BAAAAADvUfNEWsxp5LwaFYk4q1dVA4mnAXI2xssyXqpc8Mv_8Ac23FvZrCu9SYrPyZH_L1TuQIaOBRxIW-4zHqe9Z3qwBaU1vmXth3crhMal0ADamWfJLtwpBSVvLcJdufwo4j_SHiOALwnsZibDEeg-oXTKFoynrQT0CnwGQOX9",
+        "worker_takes": true
+      },
+      {
+        "name": "bit_in_the_epoch_of_a_name",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "stale_keys",
+        "why": "the same on a name: it's turned away as older keys before any key is tried",
+        "sealed": "BAAAAACOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw",
+        "worker_takes": true
+      },
+      {
+        "name": "version_of_media",
+        "of": "device_name",
+        "holder": "at_1",
+        "context": "petcam.name.v1|c0000000-0000-4000-8000-00000000000c",
+        "only_current": true,
+        "expect": "unknown_version",
+        "why": "relabelled 0x05, as media",
+        "sealed": "BQAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw",
+        "worker_takes": false
+      }
+    ],
+    "media": [
+      {
+        "name": "snapshot",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "opens",
+        "why": "under the epoch its event's details name",
+        "media_epoch": 1
+      },
+      {
+        "name": "snapshot_for_an_alert",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "opens",
+        "why": "an alert's snapshot, under the current keys",
+        "only_current": true
+      },
+      {
+        "name": "clip",
+        "of": "clip",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|clip",
+        "expect": "opens",
+        "why": "under its event's media epoch",
+        "media_epoch": 1
+      },
+      {
+        "name": "peek",
+        "of": "peek",
+        "holder": "at_1",
+        "context": "petcam.peek.v1|c0000000-0000-4000-8000-00000000000c",
+        "expect": "opens",
+        "why": "a peek frame, under the current keys",
+        "only_current": true
+      },
+      {
+        "name": "empty",
+        "of": "empty",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|clip",
+        "expect": "opens",
+        "why": "nothing inside",
+        "media_epoch": 1
+      },
+      {
+        "name": "older_recording",
+        "of": "snapshot_epoch_0",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "opens",
+        "why": "an older recording still opens, under the epoch its event names",
+        "media_epoch": 0
+      },
+      {
+        "name": "snapshot_as_the_clip",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|clip",
+        "expect": "refused",
+        "why": "the same event's clip",
+        "media_epoch": 1
+      },
+      {
+        "name": "snapshot_of_another_event",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f1000000-0000-4000-8000-0000000000f1|snapshot",
+        "expect": "refused",
+        "why": "another event's snapshot",
+        "media_epoch": 1
+      },
+      {
+        "name": "snapshot_of_another_camera",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|e0000000-0000-4000-8000-00000000000e|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "refused",
+        "why": "another camera's",
+        "media_epoch": 1
+      },
+      {
+        "name": "snapshot_as_a_peek",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.peek.v1|c0000000-0000-4000-8000-00000000000c",
+        "expect": "refused",
+        "why": "shown as live",
+        "only_current": true
+      },
+      {
+        "name": "peek_of_another_camera",
+        "of": "peek",
+        "holder": "at_1",
+        "context": "petcam.peek.v1|e0000000-0000-4000-8000-00000000000e",
+        "expect": "refused",
+        "why": "another camera's frame",
+        "only_current": true
+      },
+      {
+        "name": "media_older_than_its_event_says",
+        "of": "snapshot_epoch_0",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "unknown_keys",
+        "why": "under epoch 0, for an event whose media is under 1: a picture a removed device sealed with the keys it kept",
+        "media_epoch": 1
+      },
+      {
+        "name": "media_newer_than_its_event_says",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "unknown_keys",
+        "why": "under epoch 1, for an event whose media is under 0",
+        "media_epoch": 0
+      },
+      {
+        "name": "alert_snapshot_under_older_keys",
+        "of": "snapshot_epoch_0",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "stale_keys",
+        "why": "an alert's snapshot opens only under the current keys",
+        "only_current": true
+      },
+      {
+        "name": "media_under_newer_keys",
+        "of": "snapshot",
+        "holder": "at_0",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "newer_keys",
+        "why": "this device holds only epoch 0: it catches up",
+        "media_epoch": 1,
+        "epoch": 1
+      },
+      {
+        "name": "peek_under_newer_keys",
+        "of": "peek",
+        "holder": "at_0",
+        "context": "petcam.peek.v1|c0000000-0000-4000-8000-00000000000c",
+        "expect": "newer_keys",
+        "why": "the same for a peek frame",
+        "only_current": true,
+        "epoch": 1
+      },
+      {
+        "name": "unbound_v03",
+        "of": "unbound_v03",
+        "holder": "at_0",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "unknown_version",
+        "why": "unbound media no longer opens (since 2026-11-10)",
+        "media_epoch": 0
+      },
+      {
+        "name": "unbound_v01",
+        "of": "unbound_v01",
+        "holder": "at_0",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "unknown_version",
+        "why": "nor the first format",
+        "media_epoch": 0
+      },
+      {
+        "name": "relabelled_as_unbound",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "unknown_version",
+        "why": "bound media with its first byte changed to 0x03",
+        "media_epoch": 1,
+        "sealed": "AwAAAAGdzQIuabquCsahRoZt7RV7k2FX1SE7zIQLcCS4JTR47VSLGJOtdfYtPSyyVE-MG-P0_fi4eMNY-jiBw0WsaIncg4Ypz7NtEvH--PyRcY5vCV2-TK629xSt70E"
+      },
+      {
+        "name": "a_message_as_media",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "unknown_version",
+        "why": "a sealed message (0x04) is not media",
+        "media_epoch": 1,
+        "sealed": "BAAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw",
+        "worker_takes": false
+      },
+      {
+        "name": "media_header_alone",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "unknown_version",
+        "why": "the version and the epoch, and nothing after",
+        "media_epoch": 1,
+        "sealed": "BQAAAAE",
+        "worker_takes": false
+      },
+      {
+        "name": "media_cut_short",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "refused",
+        "why": "shorter than a nonce and a tag",
+        "media_epoch": 1,
+        "sealed": "BQAAAAGdzQIuabquCsahRoZt7RV7k2FX1SE7zIQLcCQ",
+        "worker_takes": false
+      },
+      {
+        "name": "media_last_byte_gone",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "refused",
+        "why": "one byte short",
+        "media_epoch": 1,
+        "sealed": "BQAAAAGdzQIuabquCsahRoZt7RV7k2FX1SE7zIQLcCS4JTR47VSLGJOtdfYtPSyyVE-MG-P0_fi4eMNY-jiBw0WsaIncg4Ypz7NtEvH--PyRcY5vCV2-TK629xSt7w",
+        "worker_takes": true
+      },
+      {
+        "name": "media_bit_flipped",
+        "of": "snapshot",
+        "holder": "at_1",
+        "context": "petcam.media.v2|c0000000-0000-4000-8000-00000000000c|f0000000-0000-4000-8000-00000000000f|snapshot",
+        "expect": "refused",
+        "why": "a bit of the ciphertext",
+        "media_epoch": 1,
+        "sealed": "BQAAAAGdzQIuabquCsahRoZt7RX7k2FX1SE7zIQLcCS4JTR47VSLGJOtdfYtPSyyVE-MG-P0_fi4eMNY-jiBw0WsaIncg4Ypz7NtEvH--PyRcY5vCV2-TK629xSt70E",
+        "worker_takes": true
+      }
+    ]
+  },
+  "signatures": {
+    "how": "An offer's and an answer's `sig`: base64url(HMAC(the current epoch's petcam.signal.v1 key, UTF-8 of session + \"|\" + kind + \"|\" + sdp)), the SDP exactly as it is sent (its line ends are CR LF).",
+    "session": "5e550000-0000-4000-8000-000000000005",
+    "signer": "at_1",
+    "offer": {
+      "kind": "offer",
+      "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+      "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k"
+    },
+    "answer": {
+      "kind": "answer",
+      "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 B7:14:EC:6F:D2:ED:41:00:2B:B6:D5:7E:E4:35:87:71:F0:43:96:2C:A8:62:44:2C:DD:2E:9C:DC:A8:27:A3:BE\r\na=setup:active\r\n",
+      "sig": "rPHpdY-CRnRaR_vSHE5y0z3YezFrrZQMPVIyFYtKgDQ"
+    },
+    "checks": [
+      {
+        "holder": "at_1",
+        "kind": "offer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+        "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+        "ok": true,
+        "why": "as it was signed"
+      },
+      {
+        "holder": "at_1",
+        "kind": "answer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 B7:14:EC:6F:D2:ED:41:00:2B:B6:D5:7E:E4:35:87:71:F0:43:96:2C:A8:62:44:2C:DD:2E:9C:DC:A8:27:A3:BE\r\na=setup:active\r\n",
+        "sig": "rPHpdY-CRnRaR_vSHE5y0z3YezFrrZQMPVIyFYtKgDQ",
+        "ok": true,
+        "why": "as it was signed"
+      },
+      {
+        "holder": "at_1",
+        "kind": "offer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 88:C2:97:2E:B2:4A:6A:E4:55:42:F3:28:F7:AE:75:CA:71:7D:8F:B4:88:F4:C2:4B:7B:78:CF:9D:4F:DE:28:DE\r\na=setup:actpass\r\n",
+        "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+        "ok": false,
+        "why": "another DTLS fingerprint: what a server in the middle would swap in"
+      },
+      {
+        "holder": "at_1",
+        "kind": "answer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+        "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+        "ok": false,
+        "why": "an offer's signature on an answer"
+      },
+      {
+        "holder": "at_1",
+        "kind": "offer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+        "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+        "session": "another-session",
+        "ok": false,
+        "why": "another session"
+      },
+      {
+        "holder": "at_1",
+        "kind": "offer",
+        "sdp": "v=0\no=- 4611731400430051336 2 IN IP4 127.0.0.1\ns=-\nt=0 0\na=group:BUNDLE 0\nm=video 9 UDP/TLS/RTP/SAVPF 96\nc=IN IP4 0.0.0.0\na=mid:0\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\na=setup:actpass\n",
+        "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+        "ok": false,
+        "why": "the same SDP with its line ends changed"
+      },
+      {
+        "holder": "at_0",
+        "kind": "offer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+        "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+        "ok": false,
+        "why": "checked with the keys before: only the current epoch signs and checks"
+      },
+      {
+        "holder": "at_2",
+        "kind": "offer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+        "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+        "ok": false,
+        "why": "checked once the home has moved on"
+      },
+      {
+        "holder": "at_1",
+        "kind": "offer",
+        "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+        "sig": null,
+        "ok": false,
+        "why": "no signature at all"
+      }
+    ]
+  },
+  "event_trust": {
+    "how": "An event is listed only when its details open and count: their epoch and their media's (media_epoch, else the details' own) are at least the newest epoch this device had taken more than ten minutes before the event started, and the media's is no newer than the details'. `event` is as the server lists it; `counts` says whether it is listed, and `media_epoch` which epoch its snapshot and clip must then be under.",
+    "cases": [
+      {
+        "name": "before_the_keys_changed",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000001",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAACyzCn56vrbDpoNJAFgEFRr_6fx0_NJQfaZSRpLx9r7u2-iOvAPpKbmQFHYL-lNNUw4MIRcOsQf-iQ0KOoeT1WC"
+          },
+          "started_at": 1767220200000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767220201000
+        },
+        "details_epoch": 0,
+        "counts": true,
+        "media_epoch": 0,
+        "why": "it started before this device took epoch 1: epoch 0 is what a camera had then"
+      },
+      {
+        "name": "within_the_grace",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000002",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAAAHErqtkMof3dcG8ojHBVuSlZ0ID9w-4JupXBxBZiKf5hx66f19buKZVt3EttU4OEV_y01hhx5QFcUdsPBTvrYi"
+          },
+          "started_at": 1767222300000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222301000
+        },
+        "details_epoch": 0,
+        "counts": true,
+        "media_epoch": 0,
+        "why": "five minutes after: a camera still catching up, or a clock a little off"
+      },
+      {
+        "name": "at_the_end_of_the_grace",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000003",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAADLjSW6YTZiQ0oOHX39tY2NBWVgO6a3uU3rQn-80w6ACARHyOW4tZDd06_9WjyaeXP0dgW9Sd_4Ibvbjqxc2qzY"
+          },
+          "started_at": 1767222600000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222601000
+        },
+        "details_epoch": 0,
+        "counts": true,
+        "media_epoch": 0,
+        "why": "ten minutes after, to the millisecond: still allowed"
+      },
+      {
+        "name": "just_past_the_grace",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000004",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAADt7oIj1DDaB8RzMgixpAhuyT4kNJrWI6mLIMS7ZE9ZnFi5FRMPRSah2LpgzwQr1jUY6vA5CqwQMxsGlqZ3AyEz"
+          },
+          "started_at": 1767222600001,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222601001
+        },
+        "details_epoch": 0,
+        "counts": false,
+        "why": "a millisecond past ten minutes: details under epoch 0 no longer count"
+      },
+      {
+        "name": "older_keys_after_the_change",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000005",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAABtLZZK7vVFUNUjtlnsxC29imbuKcRWzVeo6NYC1TYigHwd7ML-I5sbTX_yQ49Y_WvytHyLYrlYcPkJ2pjBxOfm"
+          },
+          "started_at": 1767222900000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222901000
+        },
+        "details_epoch": 0,
+        "counts": false,
+        "why": "what a removed device seals, with the keys it kept, for a time after the home moved on"
+      },
+      {
+        "name": "newer_keys_after_the_change",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000006",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAAFsiDKRJy7qo_DxBohskxsr7anB80AVAw3_JelCtVoo-dsTpL0i4OU5Y0JHe-SFx3OBO3J3Oyu6g2mg5V952MPu"
+          },
+          "started_at": 1767222900000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222901000
+        },
+        "details_epoch": 1,
+        "counts": true,
+        "media_epoch": 1,
+        "why": "the camera's own, under the new keys; its media is under the details' epoch"
+      },
+      {
+        "name": "names_its_media_epoch",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000007",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAAEpu0SC-ghdm3YQeEOAyitpXoZ4AMFN4EgIjHSAHzWKUvfwKSrWTevXkuhiQeawlsZH2Yyc6g8E8Fa_rWrnP7amv8RSdx-BWfVdzIYQKx4vkA"
+          },
+          "started_at": 1767222900000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222901000
+        },
+        "details_epoch": 1,
+        "counts": true,
+        "media_epoch": 1,
+        "why": "the same, saying so"
+      },
+      {
+        "name": "new_details_old_media",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000008",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAAGmvGKRAsvyywTYvS1_3LlnID7JhNWFpXDPSdEBM4_PP90uOpcpCPnciymBlF4oZI2nBCyOLMfprkqF-aioZ_a98HSxkDmcSQ0u9LHyj7jjrA"
+          },
+          "started_at": 1767222900000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222901000
+        },
+        "details_epoch": 1,
+        "counts": false,
+        "why": "new details naming media under the old keys, for a time after the change: the media could be anyone's who kept them"
+      },
+      {
+        "name": "parked_across_the_change",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000009",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAAEPoTLg-X2BkX-Fs1JZHJr8CTwlIMgAanHDt1bVWGnnwAZiJQQDo1MUED59pGehh-CYj5McuBNEo6xyBpyXyerz_8K2aF74z-uuT6ZwdPXzaA"
+          },
+          "started_at": 1767220200000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767220201000
+        },
+        "details_epoch": 1,
+        "counts": true,
+        "media_epoch": 0,
+        "why": "an event that waited in the outbox across the change: details under the new keys, media under the keys of when it started"
+      },
+      {
+        "name": "media_newer_than_details",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000010",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAACHVWMQzOrzn9g-9Bp_S5r_j4rLl1SxrKaeRmewCwRmmSLCtBDcWwfztzUjn4k1bcZ13_ZMMvxj9SovngHLbiNWop2n5tLj8lqNcuO3MzRBJw"
+          },
+          "started_at": 1767220200000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767220201000
+        },
+        "details_epoch": 0,
+        "counts": false,
+        "why": "media under a newer epoch than its details: no camera makes that"
+      },
+      {
+        "name": "under_keys_not_held_yet",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000011",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAALh3kGivhDPAfNBKwOnoyTk3McAZQWpZjSZgi7ehX45tyjc-l71cnMJ9SkUt3pVDHWP7s2MehQaby61jdJwyB6-"
+          },
+          "started_at": 1767222900000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222901000
+        },
+        "details_epoch": 2,
+        "counts": false,
+        "why": "sealed under epoch 2, which this device hasn't caught up on: not listed until it has"
+      },
+      {
+        "name": "moved_in_time",
+        "holder": "at_1",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000012",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAAHY0hYhdwuijmoRKFnKb9EzRtAq0usXakyoTo41u4nco6N8vryGNOThNCHL9AkM1KmOlqDX_MS9dAMLiDDJwrJ2"
+          },
+          "started_at": 1767222900000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222901000
+        },
+        "details_epoch": 1,
+        "counts": false,
+        "why": "listed at another time than its details are sealed to"
+      },
+      {
+        "name": "no_times_kept",
+        "holder": "no_times",
+        "event": {
+          "id": "f2000000-0000-4000-8000-000000000013",
+          "camera_id": "c0000000-0000-4000-8000-00000000000c",
+          "details": {
+            "sealed": "BAAAAAAcHTptw_eBvKJK9iu1Ugl8YsfuiR96lKKxsB4KH6gFHrcmIwovOmuHI1g5TR4lXVI_d8y8VlqP4HNwKWipj5zp"
+          },
+          "started_at": 1767222900000,
+          "duration_ms": null,
+          "has_snapshot": true,
+          "has_clip": false,
+          "clip_bytes": null,
+          "created_at": 1767222901000
+        },
+        "details_epoch": 0,
+        "counts": true,
+        "media_epoch": 0,
+        "why": "a device whose saved keys carry no times (from before devices kept them) holds nothing back"
+      }
+    ]
+  },
+  "not_sealed": {
+    "how": "What the server must refuse wherever a sealed message or sealed media belongs: plaintext, and anything too short to be sealed.",
+    "messages": [
+      {
+        "value": "{\"name\":\"Kitchen iPad\"}",
+        "why": "the JSON itself"
+      },
+      {
+        "value": "eyJuYW1lIjoiS2l0Y2hlbiBpUGFkIn0",
+        "why": "the JSON as base64url: it starts with {, not a version byte"
+      },
+      {
+        "value": "Kitchen iPad",
+        "why": "a name"
+      },
+      {
+        "value": "",
+        "why": "nothing"
+      },
+      {
+        "value": "BAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+        "why": "0x04 and 31 bytes: shorter than its header, a nonce and a tag"
+      },
+      {
+        "value": "AgEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ",
+        "why": "0x02 and 27 bytes: shorter than a nonce and a tag"
+      },
+      {
+        "value": "BQAAAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB",
+        "why": "media (0x05) where a message belongs"
+      },
+      {
+        "value": "BAAAAAHawimBEjucPo7EFV8loUZ7iI8nkE2oT0lgJSCRp3b85NUxHGq8omuAPMwCHS6Hntdon4MMQ0Aw5+zwrlgGRmfggZGOTzXS5K19wev2JmGwfRifTWiQGwdtVMY/WYItDB15QAMC+30dpQcqv5y/l0DnrSTUtMOsgSCRAyh2gT+rr9o66rzmm89kfh0gkNQ+Cp4cjAgpbQrpQFvd60vT46cr+gvunW1VNs5a3c7rdZtiAyn1hDmbhIbo673ILSdEsPohzA/CfnC4Gl/Uw8e2pQT8wLcvmRjXOQndngVXNdxshQQsT/QMor/SVs9j63UHdwL2F4iP6/y7v1LF7KnEG1Hvfg7TSIMPGd0Y94I7483vQeaKB4rZPjUbarjV8WSc74rnoO3V1oNp+zOPcE/NaThNSzIlPoZdM8wmm3nGzJ60R8uWgnbfZeT1cN8HNay6my6l0TMgcyGJSdtUMVgriC7wjDlL",
+        "why": "a sealed message written as standard base64 (with + / or =) rather than base64url"
+      },
+      {
+        "value": "BAAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw=",
+        "why": "padded"
+      }
+    ],
+    "json": [
+      {
+        "value": {
+          "name": "Kitchen iPad"
+        },
+        "why": "an object that isn't {\"sealed\": …}"
+      },
+      {
+        "value": {
+          "sealed": "BAAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw",
+          "name": "Kitchen iPad"
+        },
+        "why": "sealed, with something beside it"
+      },
+      {
+        "value": {
+          "sealed": 12
+        },
+        "why": "not text"
+      },
+      {
+        "value": "BAAAAAGOGloNPTuYtcWWNU_7pTT8u9O_DM4DfvDKA4YHDL2eiJJIaerrK6ScBQ6x2_BTwHi92Yw",
+        "why": "the text without its object"
+      }
+    ],
+    "media": [
+      {
+        "bytes": "_9j_4AAQSkZJRgABAQAAAQABAAD_2wBDAAgGBgcGBQgHB__AAAsIAAgACAEBEQD_2gAIAQEAAD8A0s8g_9k",
+        "why": "a JPEG: it starts FF D8"
+      },
+      {
+        "bytes": "AAAAGGZ0eXBpc29tAAACAGlzb21tcDQxAAAACGZyZWUAAAAMbWRhdN6tvu8",
+        "why": "an MP4: it starts 00 00 00"
+      },
+      {
+        "bytes": "eyJraW5kIjoibW90aW9uIn0",
+        "why": "JSON"
+      },
+      {
+        "bytes": "BQAAAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+        "why": "0x05 and 31 bytes: shorter than its header, a nonce and a tag"
+      },
+      {
+        "bytes": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ",
+        "why": "0x01 and 27 bytes: shorter than a nonce and a tag"
+      },
+      {
+        "bytes": "BAAAAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB",
+        "why": "a sealed message (0x04) where media belongs"
+      }
+    ]
+  }
+}

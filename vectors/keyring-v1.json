@@ -1,0 +1,852 @@
+{
+  "version": 1,
+  "about": [
+    "The household's keys as one device hands them to another: docs/API.md (Keys). A member wraps a keyring for another device's public key with HPKE (RFC 9180) in auth mode: DHKEM(P-256, HKDF-SHA256), HKDF-SHA256, AES-256-GCM; info \"petcam.keyring.v1\"; associated data \"petcam.keyring.v1|<household id>|<recipient>|<epoch>\", where <epoch> is the keyring's newest and <recipient> the device's id, or \"watch\" for an Apple Watch's (its iPhone hands it over, never the server). It travels as \"<encapsulated key>.<ciphertext and tag>\", both base64url.",
+    "Inside is JSON as Swift's JSONEncoder writes HouseholdSecret by default, unlike everything else on the wire: camelCase, \"householdID\", and bytes as standard base64 with padding. {\"householdID\", \"name\", \"epochs\": [{\"epoch\", \"secret\", \"proof\", \"takenAt\"}], \"offICloud\"}. Readers take it as values: key order and unknown fields don't matter.",
+    "CryptoKit draws its own ephemeral key, so what it seals differs every time: `sealed_by_cryptokit` was sealed once by SharedTests/KeyringVectorTests.swift and recorded (server/scripts/vectors/recorded/cryptokit.json), and `sealed_by_script` by server/scripts/petcam-crypto.mjs with the ephemeral key given. Every implementation opens both, and refuses both as `must_refuse` says.",
+    "Bytes are base64url without padding unless a field says hex or base64; strings are UTF-8; \"|\" joins the parts of a message, with nothing around it.",
+    "Made by server/scripts/vectors.mjs from fixed keys that were made up for these files; nothing here was ever a real home's. No vector is ever removed: a format the apps stop opening stays, as one that must fail. Read by SharedTests/KeyringVectorTests.swift and server/test/vectors.test.ts."
+  ],
+  "household_id": "11111111-2222-4333-8444-555555555555",
+  "name": "Home",
+  "epochs": {
+    "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+    "1": "ERERERERERERERERERERERERERERERERERERERERERE",
+    "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+  },
+  "holders": {
+    "at_0": {
+      "epochs": [
+        0
+      ],
+      "taken_at": {
+        "0": 1767139200000
+      }
+    },
+    "at_1": {
+      "epochs": [
+        0,
+        1
+      ],
+      "taken_at": {
+        "0": 1767139200000,
+        "1": 1767222000000
+      }
+    },
+    "at_2": {
+      "epochs": [
+        0,
+        1,
+        2
+      ],
+      "taken_at": {
+        "0": 1767139200000,
+        "1": 1767222000000,
+        "2": 1767225540000
+      }
+    },
+    "only_1": {
+      "epochs": [
+        1
+      ],
+      "taken_at": {
+        "1": 1767222000000
+      }
+    }
+  },
+  "devices": {
+    "member": {
+      "device_id": "d0000000-0000-4000-8000-00000000000d",
+      "private_key": "ISEhISEhISEhISEhISEhISEhISEhISEhISEhISEhISE",
+      "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+      "what": "a device in the home: it wraps"
+    },
+    "newcomer": {
+      "device_id": "90000000-0000-4000-8000-000000000009",
+      "private_key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI",
+      "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+      "what": "the device the keyrings are for"
+    },
+    "watch": {
+      "private_key": "IyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyM",
+      "public_key": "BCRkoviBPgBymbnAvu-cjW2NF0cLMrugMpwUXwz8YLaD-DGjUgWGjbmE2nKKag4RKeiUDotzV5jmU2Da2pNFdkU",
+      "what": "an Apple Watch's own key, which only its iPhone knows"
+    },
+    "stranger": {
+      "private_key": "JCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQ",
+      "public_key": "BF4LiJVUeHUvILUshvfPdqai9l41ApOwm1vEiv4S722IiPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik",
+      "what": "a key nothing here was wrapped by or for"
+    }
+  },
+  "info": "petcam.keyring.v1",
+  "associated_data": {
+    "how": "\"petcam.keyring.v1|\" + household_id + \"|\" + recipient + \"|\" + epoch",
+    "device": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+    "watch": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|watch|2"
+  },
+  "plaintexts": {
+    "approval": {
+      "what": "An approval's keyring: every epoch, so a new device opens older recordings too. Each epoch after the first carries its chain proof.",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\",\"takenAt\":1767139200000},{\"epoch\":1,\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\",\"proof\":\"iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0=\",\"takenAt\":1767222000000},{\"epoch\":2,\"secret\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\",\"proof\":\"d702B6H7Xb+SGqjUR9w1xWJ/ME2L4ZWa9m46OXNWWRo=\",\"takenAt\":1767225540000}]}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 2,
+        "epochs": {
+          "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+          "1": "ERERERERERERERERERERERERERERERERERERERERERE",
+          "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        },
+        "off_icloud": false
+      }
+    },
+    "key_change": {
+      "what": "A key change's keyring: the new epoch alone (the members kept hold the rest), so it has no proof, and stays the same size however many epochs came before.",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":2,\"secret\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\",\"takenAt\":1767225540000}]}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 2,
+        "epochs": {
+          "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        },
+        "off_icloud": false
+      }
+    },
+    "key_change_off_icloud": {
+      "what": "The same from a device deleting its account: \"offICloud\": true tells whoever takes the keys to keep them out of iCloud Keychain. Left out when false.",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":2,\"secret\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\",\"takenAt\":1767225540000}],\"offICloud\":true}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 2,
+        "epochs": {
+          "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        },
+        "off_icloud": true
+      }
+    },
+    "key_change_to_1": {
+      "what": "The key change before that one, to epoch 1.",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":1,\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\",\"takenAt\":1767222000000}]}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 1,
+        "epochs": {
+          "1": "ERERERERERERERERERERERERERERERERERERERERERE"
+        },
+        "off_icloud": false
+      }
+    },
+    "before_times": {
+      "what": "As builds before 2026-11-10 wrote it: no takenAt.",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"},{\"epoch\":1,\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\",\"proof\":\"iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0=\"}]}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 1,
+        "epochs": {
+          "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+          "1": "ERERERERERERERERERERERERERERERERERERERERERE"
+        },
+        "off_icloud": false
+      }
+    },
+    "single_secret": {
+      "what": "As copies from before epochs were saved: one `secret` and no `epochs`. It is epoch 0.",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 0,
+        "epochs": {
+          "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+        },
+        "off_icloud": false
+      }
+    },
+    "another_order": {
+      "what": "The same kind of thing with its keys in another order, epochs newest first, fields no build knows, \"offICloud\": false said outright and a name outside ASCII: it reads the same way.",
+      "text": "{\"offICloud\":false,\"later\":{\"anything\":true},\"epochs\":[{\"takenAt\":1767222000000,\"proof\":\"iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0=\",\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\",\"epoch\":1,\"note\":\"unknown fields are passed over\"},{\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\",\"epoch\":0}],\"name\":\"Zoë’s 🏡\",\"householdID\":\"11111111-2222-4333-8444-555555555555\"}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Zoë’s 🏡",
+        "epoch": 1,
+        "epochs": {
+          "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+          "1": "ERERERERERERERERERERERERERERERERERERERERERE"
+        },
+        "off_icloud": false
+      }
+    }
+  },
+  "plaintexts_refused": [
+    {
+      "name": "secret_base64url",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\"}]}",
+      "why": "the secret as base64url without padding: inside a keyring, bytes are standard base64 with padding"
+    },
+    {
+      "name": "secret_short",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw==\"}]}",
+      "why": "a secret of 31 bytes"
+    },
+    {
+      "name": "epoch_negative",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":-1,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"}]}",
+      "why": "an epoch below 0"
+    },
+    {
+      "name": "epoch_past_the_largest",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":2147483648,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"}]}",
+      "why": "an epoch past 2^31 − 1, the largest a saved copy holds"
+    },
+    {
+      "name": "epoch_past_u32",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":4294967296,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"}]}",
+      "why": "an epoch no sealed header could name"
+    },
+    {
+      "name": "epoch_as_text",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":\"1\",\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\"}]}",
+      "why": "an epoch written as text"
+    },
+    {
+      "name": "snake_case",
+      "text": "{\"household_id\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"}]}",
+      "why": "household_id: this one object is camelCase (householdID), unlike everything else on the wire"
+    },
+    {
+      "name": "no_name",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"}]}",
+      "why": "no name"
+    },
+    {
+      "name": "no_epochs",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[]}",
+      "why": "no epochs, and no single secret either"
+    },
+    {
+      "name": "proof_not_base64",
+      "text": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":1,\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\",\"proof\":\"not base64!\"}]}",
+      "why": "a proof that isn't base64"
+    },
+    {
+      "name": "not_json",
+      "text": "householdID=1",
+      "why": "not JSON"
+    }
+  ],
+  "sealed_by_script": [
+    {
+      "name": "approval",
+      "plaintext": "approval",
+      "from": "member",
+      "to": "newcomer",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "90000000-0000-4000-8000-000000000009",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+      "ephemeral_private_key": "vVvanseSn2YViKiIh5E52DHnmcte50sTSrCgYXhfKBM",
+      "wrapped": "BLwOFjJkYYFpQK-h7BVNxWA14D1QgSZxHv5-HgOawdRkvQfyjV0KzcCLzd1Np6EBga-y_fTj8gwIfnOZvBzk_rM.wSTHoCHyElGaJV1BsIjO3SQWP392bJciH5AvXZUy7wGpJmZY73LQeN8l6CBsXo_4Jf0JtnQjZMeWJYEzoHo3XA8xThF1BNBYlvEoLYBHpMuGARlHN-mWDCHsc0QvSddaKB-L-qNP-6WJWEUcgT6eULODwVNBurC6l8ZG5pVP2Geta8_64aFSkB8eFCD5udVCxs9peUK_Xdqa5bjZVJdUoasw5HeyIWACv-pLYgij18uRxoekomcH2dahuH_h70R59xgBDrFsGVUOVaEHG5osTxR-YC5v-GQvFZoM6F_oQTUbklnxR77xFaqsTav5tm9Fp0snI63Qf_KBnnpn8nuaFTpWmBM4LJ-JQU6bD6YnfZOtrgkjNjV8gMFkqrsiBh_OVg71x011TpJ5HBslkGUJK6OcIPzAR8GPGkbP8yStButGcAWg59EuOTM7Q2lG554_lblrf-KSFB7TzPMgO-5n1eHjaMdlMhpzaaVzFNS_slHSXN0K0HHQ5fbrHjiuXCfgOVI6iStg2ERLHVUvCb7Jlr5x3NWNlEI-PRLPFXCkAN1YBig5Ap11VkrrRg3eodGNG05N7QZ2GzMv9nfvryIKxxCap6TMlcT922NcLIerGXj-YUEDaChtKTFI-8i9wQK6Sw"
+    },
+    {
+      "name": "key_change",
+      "plaintext": "key_change",
+      "from": "member",
+      "to": "newcomer",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "90000000-0000-4000-8000-000000000009",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+      "ephemeral_private_key": "QTEgne9MvlBzeWldQwYnHZ8YUOkJRFI6OCB8Xn4xCdQ",
+      "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA"
+    },
+    {
+      "name": "key_change_off_icloud",
+      "plaintext": "key_change_off_icloud",
+      "from": "member",
+      "to": "newcomer",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "90000000-0000-4000-8000-000000000009",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+      "ephemeral_private_key": "Rtu4HWgGfKh0b5rF5DAWPpps-52V6vQSwIEPAg5HVwI",
+      "wrapped": "BFwDYpwriW-D0TCaStrLW2hnuW-mlIX4CJxp-ZXjxMLnUvZVejN2xxPByshBi4mXwY2ijs7v3R6vhGmVfrG8194.nkE4wwPJ0Jl7MKkXdj4TKHHN0hMWu-XTrVdfarMneYziEQgfvQDaBhAdOFRm5o1HppcapDlBCszpqzcGtfVufp4PhvJnYrfHa5TakN5cg1IYUj4ABdDHfjTSWHPq9dzQLQYJvq4Kod0JUB-a8kOOtBQ8QkN2GmcB_AI5FMytm9A4wxVhid6L-HkCyVUAYVHgDH7JZp2IideviN6rHMtEJsis0GvkWM6NK1Llwag8_YpDlg4BVXBzZFWuZ143kBIXFTEpm8xZRRACZAu5"
+    },
+    {
+      "name": "key_change_to_1",
+      "plaintext": "key_change_to_1",
+      "from": "member",
+      "to": "newcomer",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "90000000-0000-4000-8000-000000000009",
+      "epoch": 1,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|1",
+      "ephemeral_private_key": "r5GSAVZbeqkdaTLLy9Mff4K_Ped38w02fTAsFbCo-5I",
+      "wrapped": "BAcxad-euZXegrLH7Y1R0YPp1nmhIuMf6st4x83LeTuWKWG0rG8aO8WxC3Lc5OJb8GxIcxdTBNHLlTOIUmCba94.DbFWFUsw0L3WhMCON5F4u1MfK0r72vOVhs71a5d-Tm0-kKSuFfz1xkXzmTAEn2HaDOqlOHIjLDBdy4bjyMMximFmU-O6k_q2Z_Sm2DLQ7cFdcJQQrmgvfPxHtGpkxXaCYxb3xnmRHZk0w8Dg-UIuX-C-eHQQ3LOODb-2gazQ861I3Jxdocoes5Z9MTWen22npeMMewkZYs-4TbHXGBDIJ82Z79X1NWdtXGAL3al0CGD7byeuMog_uxE5Sg"
+    },
+    {
+      "name": "watch",
+      "plaintext": "approval",
+      "from": "member",
+      "to": "watch",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "watch",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|watch|2",
+      "ephemeral_private_key": "ZD7ZlhHjBdzDpVw-nVTcVLSV1G4en6KOCLfRSDvDk7M",
+      "wrapped": "BNbcx7aTSrxAT_m9NAcDIpZEbUUXCwk-t9C3DlcI_wHyOeUOgAHcqx6QCGVUEceyQB-Dwla3IKy0W5vul9eNJ1M.owuNEzr6O-hHDGjHvI-lKbk0rjZL1THj_EL9LPi9yI8JN8fghMPe8AJUEjS2FS4SJiTqhgl4QjpLf814iO1rKdjEyjYANmXE1ezygx2IxX37X1R4-u-tv3vU78nlD-NJ2Abh9H4lamJzlOba-K0HS8TuRqbALei2RBmW0-8xqXEsgfZSVakwl9RFeq1bpuXMeJYlNfVCwmuRtmIsvUUBBEsE3k4w_UvyK38zybZDwB9OOpOgM2wpY7JtyZ9CJHBYLFYpXiITZrUPixNCAQ113zun4AsPI-7dtp8Vnssqk4KDxmRZCGysjxXukECYlrXfZKUthLi9oYipg2XgB0Wuf6IPycgYQTHAwRfNR-yDaZaGNLtsBX64QgCYI2H283AAAwcVzyC4ScSIKBTAgL1E1XOuOMntq8eMdKFxysiAcnGpi39-uSCmotKVPP01Ueg5TKhGxZ4-73KjJhsGPBfzyQ3sjb3gCcRaZ4Gzxf6Oi79iNv_h3dIMApvQFMf0h1yRjaGT5Z9J-Ay4shCTRm10K2Pw4K4AgkJxsTZ-gjSXlhCMlg7WSpaeuWJl1X5-wQM1dvXEKv-YoXsQqNC9UtZ5uXw_-PZnRAiygoJvjiZsPdaLPb8KL7MsD-D2zqsm8VFdrQ"
+    }
+  ],
+  "sealed_by_cryptokit": [
+    {
+      "name": "approval",
+      "from": "member",
+      "to": "newcomer",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "90000000-0000-4000-8000-000000000009",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+      "wrapped": "BKJZ6lWRk5tCNwW9oZUBD6uAwPKDItJPjDP1MEIXW_RKrQZxzA3KZ0JrQ0ItEzxb8YTs-Pamb5v74IXmJ3YM84k.8kUOnbdkKG9nDMJrcpDJBeycnLz9QFjMtoR1-MAZFetOFEbE2kv27htiTtLP767m0gHUhsko0mEl9L7JAwoN7A9ytEyKWYBFzmgDxzlGPt6eJ4A6aLg-wtoZ4Lm29Oc-qhsMYer48oHwnQsBkYP-JTop1aZUazwkV9np5Vc9ywj1CIm5RniZN4VuTWh-QK-L3EKBKAd4whe-Ejmrrdrl8AAlczFQj2s0LvLkP_YFNgiEQSsqhmSbVJ3d8JvFndvAj9nCU8fAZp9bT2yDKyMpnLq8uifnmN86Oq7FbzqccO5ZoHoxR2TpJLLoDiV9PVYCZMkvIPJfEKAxGvVv_YBNuqebwBVgPKSX5drEqWJrufZqD-k9V7c4B_q0cw1BVqh4vAWcfyUrpA8690507bGLZ-YIs99qIqV1aPjamak-TL2IYYZtGzcF_HrXVVxi7L8wGW_bJU-QeP_9lAFimQL7ElkakMXl86lNSt5XtulAHnqSLRY06nCzd6pTJihveP2JLHbD2Osf5a7e2_NngfZ2XI_Hsn0LX-WoODy_ZUCMewxg3jy6OdS0_HEx6Zek3uQhlR9rWTi4-iCxU7_91o5tsdCXRFPGYmCLPCl5GqYha0f8rwXWwoliA2Gh18lIKvDHQ2A",
+      "plaintext_as_swift_wrote_it": "{\"name\":\"Home\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\",\"takenAt\":1767139200000},{\"takenAt\":1767222000000,\"epoch\":1,\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\",\"proof\":\"iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0=\"},{\"takenAt\":1767225540000,\"epoch\":2,\"secret\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\",\"proof\":\"d702B6H7Xb+SGqjUR9w1xWJ\\/ME2L4ZWa9m46OXNWWRo=\"}],\"householdID\":\"11111111-2222-4333-8444-555555555555\"}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 2,
+        "epochs": {
+          "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+          "1": "ERERERERERERERERERERERERERERERERERERERERERE",
+          "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        },
+        "off_icloud": false
+      }
+    },
+    {
+      "name": "key_change",
+      "from": "member",
+      "to": "newcomer",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "90000000-0000-4000-8000-000000000009",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+      "wrapped": "BChlheGpwx7Yf5oYstPV4PCUfdf7X91ZcApwcO73J6qYGny3wUYAMiX1GO3EYlY6VQkj9HpQMx4n_vdJhp_2LFw.vQSzNxVERhYs3Jp23nfCmie6UqPk-Y52Nzz8nVdpgDiIWs57N3Jo1VqfKpq90sHkEWxtHPXksH5qapmJ3Fl2LnsOyuvTsusJMPU0KR04Oyyri7UVSCKxLr5j8L-Ay0RDpSgzKIRUxFKMq-MGUJ4BL0FUltjKNgXgzCT2Z3-toedALSuThP7ZF6Koi4k5ABFiCoa67Vmr_eaO1xGa_46bM3lruA4fM73cNIbacGUQJ2ox5OR088GheSFiQw",
+      "plaintext_as_swift_wrote_it": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"secret\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\",\"takenAt\":1767225540000,\"epoch\":2}]}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 2,
+        "epochs": {
+          "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        },
+        "off_icloud": false
+      }
+    },
+    {
+      "name": "key_change_off_icloud",
+      "from": "member",
+      "to": "newcomer",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "90000000-0000-4000-8000-000000000009",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+      "wrapped": "BMJGx_bXGUxVMXZTS2i4du75VrKdq8sRxSvYbBpyL3zbMk7LT-Mn5_QdMK3UFsFjo-O5mBRCrIAzTRlRKa7dArA.Wj-x-MMD-PUpkLeY8MOlsH63c8PMieO7crK1OW_F_68BhLfLfX3XEx91_pu8W-MtPp4ziyN4uVCGLrkF6YTZMJ1ljaHABbgJApCgDj6gxAhsm0pOy327SHdoJoNHoWoJby6RpYfxxGlGJcRsNYLNwKR5lkmRKWlqFk8MFcNqq96YdIgM-yxAk4yEBpUwn3JulFR1mL8g1WTI07jEexVeqQ0f0r3xLkc9tWWxvYtWD__bVoj4OqyuBn7eQXyCJ2HOVrGsT0lpMwZpEzPP",
+      "plaintext_as_swift_wrote_it": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":2,\"secret\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\",\"takenAt\":1767225540000}],\"offICloud\":true}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 2,
+        "epochs": {
+          "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        },
+        "off_icloud": true
+      }
+    },
+    {
+      "name": "watch",
+      "from": "member",
+      "to": "watch",
+      "household_id": "11111111-2222-4333-8444-555555555555",
+      "recipient": "watch",
+      "epoch": 2,
+      "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|watch|2",
+      "wrapped": "BG2-B65ah1XDDDZIHKx1Lwq6U7w81Biuy34rPpBBjZ1MEHeIzysUj6mWiD8NZFnktxWX8tFr5kxvKMVWwUB4D84.KsGjIYJrDst5WGneRInsr2fTn2Uh8py4IL2PF45tKa-JitBSrzJ3N7vmvyJMJGMCOs2cJwAKlBUpH4w_dKo9XLXEfQ299vGl6yrPExqhmmeJBXkzwPur6J_eRJr-jiJLIgq-p0NUseWspkdpXp4QtOay3arHnrmIOOlr-CafKI1QqJz9U1cw9EzHrfTKpA4qasSh0OOKbT5G7_mIO7vKRMuYNBhAP-t_Sh0Cb2J3-iHQWy9KxEZ7yMMmNW3moZkqZFaudLti_tkC9sU_ZLORSiM2gp7kx0xXy5W6T-8oSFVrv3adl85qQpdLsZUJUJKOyAV7Q9vay0vQhiszrnWemTFfCr9da43zh1fc_t5llNTy_O5p4yXv56zcJG3GG6MuMi7TA6UkA67GVEciUAiFL8T-xe7xrI5qj7BAugYWLNdk9Z0y_r3JO4NVrfrntcqzPQnULZOp1ar3FCa-QLOF4hsZtTXHyTADIwp7ekZ2t0LNAXPYoDxmOKGkY_B6JEM8ki9B2KUSO04-8r13f1jYzdY4YqFWLQN2-_-j_W6qwNYFMqo0lbfWbLY5FQs37pj5w52jR6jT7cCm2TVOj-BRP7Y-J8wSnMbenSmRYAy_2gqtePwarJVYsu2yxaRKZhg0V2M",
+      "plaintext_as_swift_wrote_it": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"takenAt\":1767139200000,\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\"},{\"proof\":\"iAwEedO2CagAVT2yehIb2SNM6zUr38izOF1chS4Fwr0=\",\"takenAt\":1767222000000,\"epoch\":1,\"secret\":\"ERERERERERERERERERERERERERERERERERERERERERE=\"},{\"proof\":\"d702B6H7Xb+SGqjUR9w1xWJ\\/ME2L4ZWa9m46OXNWWRo=\",\"takenAt\":1767225540000,\"epoch\":2,\"secret\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}]}",
+      "reads": {
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "epoch": 2,
+        "epochs": {
+          "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+          "1": "ERERERERERERERERERERERERERERERERERERERERERE",
+          "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        },
+        "off_icloud": false
+      }
+    }
+  ],
+  "must_refuse": {
+    "how": "Each wrapped keyring above opens only as it was wrapped: with the recipient's private key, as sent by the member's public key, for its household_id, recipient and epoch. Change any one, and it must not open.",
+    "changes": [
+      {
+        "change": "sender",
+        "to": "stranger",
+        "why": "as if another key had sent it: auth mode binds the sender's"
+      },
+      {
+        "change": "recipient_key",
+        "to": "stranger",
+        "why": "with another device's private key"
+      },
+      {
+        "change": "recipient",
+        "to": "e0000000-0000-4000-8000-00000000000e",
+        "why": "another device's id (for the Watch's: a device id in place of \"watch\")"
+      },
+      {
+        "change": "recipient",
+        "to": "watch_or_device",
+        "why": "a device's keyring opened as a Watch's, and the Watch's as the newcomer's"
+      },
+      {
+        "change": "household_id",
+        "to": "99999999-2222-4333-8444-555555555555",
+        "why": "another household's id"
+      },
+      {
+        "change": "epoch",
+        "to": "plus_one",
+        "why": "the next epoch"
+      },
+      {
+        "change": "epoch",
+        "to": "minus_one",
+        "why": "the epoch before"
+      }
+    ]
+  },
+  "inside_mismatch": {
+    "how": "Sealed by the script so that they open, with what's inside at odds with what they were wrapped as: a device checks that the keyring inside is for the household and the epoch it asked for.",
+    "cases": [
+      {
+        "name": "inside_another_household",
+        "from": "member",
+        "to": "newcomer",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "recipient": "90000000-0000-4000-8000-000000000009",
+        "epoch": 2,
+        "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+        "ephemeral_private_key": "fesV3LbC6GN8_pszOFtcK8qeW-ktV5A3JOdO0ItCXqk",
+        "wrapped": "BCg5cAS_0aI7ZY4Of439r4Yjl7yWe3x5j2KZTsWsjvwFu96LvtpPzFFUj69SSjZrvicAic4Qn4GUOmtwkHwbWEs.LWr7Bj8vFQ845j8pZfBrqsjuk4a4WlUjiz3sB7WGs1YyjSFwJJGzhzpf7zUTWLvf1qACc0x63-ELT3Y8l7GuN7xEAwyMx8ZSQduUdrQI4WiRHjlKTiCe7iqqZ5A63xFUBeBm1Ft255GUhe7asxz8kTZSsUDXoipz0UaP-yMSnVoWPpNFTZNwMWSUb0o6SLqoqngIJgTSu6IYOwy2y0T2brPrIw",
+        "expect": "unknown_keys",
+        "why": "wrapped as this home's, and inside is another household's id"
+      },
+      {
+        "name": "inside_older_epoch",
+        "from": "member",
+        "to": "newcomer",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "recipient": "90000000-0000-4000-8000-000000000009",
+        "epoch": 2,
+        "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+        "ephemeral_private_key": "YJ3CexI2IDssuZBxDihN-R435inafWRv4LH5oPMIpG4",
+        "wrapped": "BG9KhNakPO3GIfGtfU29XtcFiDJ0ReIfrHlEhUQ9hujntWpE9cpBGGAoQV9XbgaR1DV4Fa8Mf94n_me2fUKtnlg.Peb_NUdQHX9qDylJtgySg5Cv3BBH0tPEjbV1WB78YBA_UVTzPIAYicV6zQwLm0YsqmwzEgekIimmjrvvU-SBsM74QgTDemspKS7RdPE_VIoPFC6ZEfzBtMn5RxvJ2avjEWUrzcS362nnFHxM02ZzgJPibbSrndBsx5yA_cqZ80a0WhMwhkndiNdxW-5XEJ2aDNQAv8c_1jTw9-a-nMMpV0GCnLz_1MPNG0rD-Ks3u3n4vFUaDy7R98Dx4A",
+        "expect": "unknown_keys",
+        "why": "wrapped as epoch 2, and the newest epoch inside is 1"
+      },
+      {
+        "name": "inside_newer_epoch",
+        "from": "member",
+        "to": "newcomer",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "recipient": "90000000-0000-4000-8000-000000000009",
+        "epoch": 1,
+        "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|1",
+        "ephemeral_private_key": "auBp4BviBF4oFGu3VrWvD8q13WgrKhe882hYHHIGJgk",
+        "wrapped": "BHKjSpPLz6vAzaKWNhwiIyygpQO3zDqXRCbDJfkob1YvgG85r70GK0pAt66Sx6hrGytvi9C_YfwDokkE8uWVIBA.3n8xCWi3X2A3BBpUsax6TSHGi2fEBvD0bGtjGNFLB9hIaDdrj_hxBxms_t7zHqSHXfx7oOAPPWF6dCFeE8sQ8fKUcaI7ScDSo0kqfTfUjrGxVOnrOXziGrRe5TMwhdFrQ_1ZbEX52X0gy_VizUN88eg8iAtUHuHS_p33HFHGu0Ty3hnx5Yl_4YAuiVLvmj-GObn_vJLCFpXdh1FKpM4kqNDy4T8glL1i4uNxDrgZimwCWY9QCk4q9okrF9_MXPWzM7IAnEVTsR20GUaLyfUw_qRzdFqXGFqWTgn6jLrA4ikTJmatZ83MwtujJF6kP6xyRT0-YjiZT8WPN1F8acSdXt1BOQb6OeMHHrnxHsK2Hjn0bk7kfvv0TcQcTPcYZak1g2lMvG7pG0ncnGW0JcVfve5GniAl2-Qg3FyB4hX4HID42_QlpdyjHFUfi_Zzrcog1mlJbLuzIrVVmnOOGmpy7ENCTgg-l1hZfdiB1Lbp1lQV2X1CzVdQmnSaeTKd7bvIRt-D2wM236mTs1EZBmpxnypQEZXK5J7K-bKS9WoeETQtX3MKGUb_xxFyKj8GqHQQfXgWBFaYMttP_NLjdgCzasVagcZMHMIodJY7d7acyRbOSH2XG_WGnYCgjvgG7VnILw",
+        "expect": "unknown_keys",
+        "why": "wrapped as epoch 1, and the newest epoch inside is 2"
+      },
+      {
+        "name": "inside_not_a_keyring",
+        "from": "member",
+        "to": "newcomer",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "recipient": "90000000-0000-4000-8000-000000000009",
+        "epoch": 2,
+        "aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|2",
+        "ephemeral_private_key": "t9p6P8v3qOIq3Y5sAq7C2hhK1xmLK5JewN5SGuHy5eM",
+        "wrapped": "BL5xySM7e1FuVS3wOUcRwU3_DLfY-gn62V6d8R2wH132ndk4vHTHS2jbq1cr_20lp2JV1EWR257uN26bc8cH6fI.RB0Td7dr7jY2MEMOjPhdKhA0mtPTxBInXRWthuxSrrwEYid7oOhaXxPFFxowV_QfVRcvgwZiEKescRdoM3GF",
+        "expect": "refused",
+        "why": "it opens, and nothing inside is a keyring"
+      }
+    ]
+  },
+  "catch_up": {
+    "how": "After a key change a device takes the keyrings the server lists for it (GET /v1/household/keyring), oldest first: each only if it is the next epoch, its sender's `from_attestation` checks out under the epoch the device holds now (for `from_device_id` and `from_public_key`), it opens as sent by `from_public_key` for this device, and it agrees with every epoch the device already holds. The first that doesn't ends it. `holder` says which epochs the newcomer starts with; `epoch` is where it ends up.",
+    "device": "newcomer",
+    "cases": [
+      {
+        "name": "a_key_change",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 2,
+        "off_icloud": false,
+        "why": "the sender is vouched for under epoch 1, the keyring opens as theirs, for this device, and adds epoch 2"
+      },
+      {
+        "name": "kept_off_icloud",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+            "wrapped": "BFwDYpwriW-D0TCaStrLW2hnuW-mlIX4CJxp-ZXjxMLnUvZVejN2xxPByshBi4mXwY2ijs7v3R6vhGmVfrG8194.nkE4wwPJ0Jl7MKkXdj4TKHHN0hMWu-XTrVdfarMneYziEQgfvQDaBhAdOFRm5o1HppcapDlBCszpqzcGtfVufp4PhvJnYrfHa5TakN5cg1IYUj4ABdDHfjTSWHPq9dzQLQYJvq4Kod0JUB-a8kOOtBQ8QkN2GmcB_AI5FMytm9A4wxVhid6L-HkCyVUAYVHgDH7JZp2IideviN6rHMtEJsis0GvkWM6NK1Llwag8_YpDlg4BVXBzZFWuZ143kBIXFTEpm8xZRRACZAu5",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 2,
+        "off_icloud": true,
+        "why": "the same, and the keyring says to keep the keys off iCloud Keychain"
+      },
+      {
+        "name": "two_in_turn",
+        "holder": "at_0",
+        "entries": [
+          {
+            "epoch": 1,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "RLAqyjJYKP4Fx7LuGUKA7sQBAD2geYQDtlAn-42PMP0",
+            "wrapped": "BAcxad-euZXegrLH7Y1R0YPp1nmhIuMf6st4x83LeTuWKWG0rG8aO8WxC3Lc5OJb8GxIcxdTBNHLlTOIUmCba94.DbFWFUsw0L3WhMCON5F4u1MfK0r72vOVhs71a5d-Tm0-kKSuFfz1xkXzmTAEn2HaDOqlOHIjLDBdy4bjyMMximFmU-O6k_q2Z_Sm2DLQ7cFdcJQQrmgvfPxHtGpkxXaCYxb3xnmRHZk0w8Dg-UIuX-C-eHQQ3LOODb-2gazQ861I3Jxdocoes5Z9MTWen22npeMMewkZYs-4TbHXGBDIJ82Z79X1NWdtXGAL3al0CGD7byeuMog_uxE5Sg",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          },
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 2,
+        "off_icloud": false,
+        "why": "oldest first: epoch 1, then 2 with a sender vouched for under the epoch it just took"
+      },
+      {
+        "name": "sender_not_vouched_for",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "44vzejEVCU3NL9apsFgSXF8OhnwK71zT3aAe2M2VEmA",
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 1,
+        "off_icloud": false,
+        "why": "the attestation is for another key than the sender's"
+      },
+      {
+        "name": "vouched_for_under_the_new_epoch",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "d85DTrkimR06DFBNwoWYJpsHzUQjYpRZ8KpeBWx2GI0",
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 1,
+        "off_icloud": false,
+        "why": "the sender is vouched for under the epoch being handed over, which this device can't check yet: it has to be the one before"
+      },
+      {
+        "name": "no_attestation",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": null,
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 1,
+        "off_icloud": false,
+        "why": "nobody vouches for the sender"
+      },
+      {
+        "name": "not_from_the_sender_it_names",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BF4LiJVUeHUvILUshvfPdqai9l41ApOwm1vEiv4S722IiPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik",
+            "from_attestation": "44vzejEVCU3NL9apsFgSXF8OhnwK71zT3aAe2M2VEmA",
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 1,
+        "off_icloud": false,
+        "why": "listed as from a key the home vouches for, but another key wrapped it: it doesn't open as theirs"
+      },
+      {
+        "name": "disagrees_about_an_epoch_held",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+            "wrapped": "BJUtTVkOxqyDONiF8d7yAudQdppiY0ITDb0w4IIeMD6Hpay7ChZ3oTPUx05jBwFjcIcBLi00quLN5ph3h2-2d0c.bhH-H6oBYSgUjulHbWdK0MtcBVlPL9t4IvU8_u5KSMVLEJTN_X8_OdE2vbKkaPm-weoQGaHydB7MEGHJxtj7k11rnPXrni5xa-YTwoFtKN4E2bjrdr5RtoiI1uOnOQGKmEwCrlGtIg9ssvL60wtF5EtXgHK-HFpCxIqU6mDZyWtIwYx_RfN0r_xKearm1oBO6jARue5OstxT5Yjcmc36MgFA7E5Cx22_kvo1cewZ2Lr1I7HVKyJXoDiwMiV0z7HZhc9IVwMNupnU09PzxIaRqrIvlccgmvOz4vibu9KaoR-rBTcvgMLuLMdH8ZI9QogJTjFMFOPgoQWO5qPRu2HnztH8UsFM-lJjjAm4s_jbTLhWH2AgPd8f3b-qcYEwBQ",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 1,
+        "off_icloud": false,
+        "why": "it opens, and holds another secret for epoch 1 than this device does: someone is lying"
+      },
+      {
+        "name": "for_another_device",
+        "holder": "at_1",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+            "wrapped": "BPvtqk7AqcZSOh7j25ijUYEw2Mhl2a_DtG8YXYATVx3cVlKJdGpeie3MEJR3vKVtCa4Hvhr1SU8-ot-CCMEywVM.55ZUth8U8N94Xk8_5XH4F7q61WesQbCFOrgRAPiIX40rnO3cZETaHlGfZ34oDYqIbvsFlpafvB0sR0GCUuB7UudX1ostqBV92Fw8c77j5Fdpx8KeTyUTQsuXajSKnmh57tmwpsImh93q-gEr9QSKAhK0xCTQxPTORLYcrdRH57-j0-ZkdPJ0cGhfJR4-Pfrmkh2rqND9SKlsf6mtWFkI_T4ugt1vicJ52JG2a79w2M1ZbqBqtQ31tJPvCg",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 1,
+        "off_icloud": false,
+        "why": "wrapped for another device's id"
+      },
+      {
+        "name": "skips_an_epoch",
+        "holder": "at_0",
+        "entries": [
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 0,
+        "off_icloud": false,
+        "why": "epoch 2 for a device at epoch 0: only the next epoch is taken"
+      },
+      {
+        "name": "the_first_that_fails_ends_it",
+        "holder": "at_0",
+        "entries": [
+          {
+            "epoch": 1,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": null,
+            "wrapped": "BAcxad-euZXegrLH7Y1R0YPp1nmhIuMf6st4x83LeTuWKWG0rG8aO8WxC3Lc5OJb8GxIcxdTBNHLlTOIUmCba94.DbFWFUsw0L3WhMCON5F4u1MfK0r72vOVhs71a5d-Tm0-kKSuFfz1xkXzmTAEn2HaDOqlOHIjLDBdy4bjyMMximFmU-O6k_q2Z_Sm2DLQ7cFdcJQQrmgvfPxHtGpkxXaCYxb3xnmRHZk0w8Dg-UIuX-C-eHQQ3LOODb-2gazQ861I3Jxdocoes5Z9MTWen22npeMMewkZYs-4TbHXGBDIJ82Z79X1NWdtXGAL3al0CGD7byeuMog_uxE5Sg",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          },
+          {
+            "epoch": 2,
+            "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+            "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+            "from_attestation": "1PW9XIb92AlV2pMrcFVjtz3XM0NVK82oLvyeYoYsetc",
+            "wrapped": "BMEAnrq9VZflyIjS1EhW8JtuhQZVAKJ7hJtWv3RwY1lfh_7x8jUr6RYON00EDzZtBQbSWlB74x7OgzLr2WRS-o8.4eLz1rxNqr5T6_OR6Kg3XWhCSPl8ggxKDDbb_Z24lM4wTCKYj-K1zDns0aw2-3wA-nOal7h1K_rqsFCDccHYXqArrh5VRepySZ7WZZBdg2cCHT4MVtI5Y6QeXn9Ej8FcgSlYsSbCKtUzSm5pradEW2Qq99eQGnCL2B4x5Za201KOv-zlufxgQKJKLOsJxyU167ed8Hx6UHUHMEJjGDmmPmFsFWnzW198YGnm-gMnfevjoeVeUOFSgXTFnA",
+            "approval_mac": null,
+            "created_at": 1767225600000
+          }
+        ],
+        "epoch": 0,
+        "off_icloud": false,
+        "why": "epoch 1 doesn't check out, so epoch 2 is never reached"
+      }
+    ]
+  },
+  "hpke_cfrg": {
+    "how": [
+      "The CFRG's published HPKE test vectors (RFC 9180) for the suite Pet Cam Pro uses: DHKEM(P-256, HKDF-SHA256) (kem_id 16), HKDF-SHA256 (kdf_id 1), AES-256-GCM (aead_id 2), in base mode (0) and auth mode (2). The RFC's own appendix prints other suites; this one is in the file the CFRG publishes beside it.",
+      "Copied as published, every value hex. Of each mode's 257 encryptions, the six sequence numbers the RFC prints for its suites are kept (0, 1, 2, 4, 255, 256); the exports are left out (the apps export nothing). Pet Cam Pro seals one message per encapsulation: sequence 0.",
+      "server/scripts/vectors.mjs copies this into docs/vectors/keyring-v1.json; server/scripts/petcam-crypto.mjs reproduces every value in it."
+    ],
+    "source": "https://github.com/cfrg/draft-irtf-cfrg-hpke/blob/master/test-vectors.json",
+    "retrieved": "2026-11-16",
+    "source_sha256_hex": "61fc662f01996cd06d713dacf5e133167bd309a1f329442d53f1e21a47b3ede6",
+    "encoding": "hex, as published",
+    "vectors": [
+      {
+        "mode": 0,
+        "kem_id": 16,
+        "kdf_id": 1,
+        "aead_id": 2,
+        "info": "4f6465206f6e2061204772656369616e2055726e",
+        "ikmR": "a0ce15d49e28bd47a18a97e147582d814b08cbe00109fed5ec27d1b4e9f6f5e3",
+        "ikmE": "a90d3417c3da9cb6c6ae19b4b5dd6cc9529a4cc24efb7ae0ace1f31887a8cd6c",
+        "skRm": "317f915db7bc629c48fe765587897e01e282d3e8445f79f27f65d031a88082b2",
+        "skEm": "90345e3a1d116c1dd39ae76d95ab858c142223a63e44f8f85318cfa91a84858e",
+        "pkRm": "04abc7e49a4c6b3566d77d0304addc6ed0e98512ffccf505e6a8e3eb25c685136f853148544876de76c0f2ef99cdc3a05ccf5ded7860c7c021238f9e2073d2356c",
+        "pkEm": "04c06b4f6bebc7bb495cb797ab753f911aff80aefb86fd8b6fcc35525f3ab5f03e0b21bd31a86c6048af3cb2d98e0d3bf01da5cc4c39ff5370d331a4f1f7d5a4e0",
+        "enc": "04c06b4f6bebc7bb495cb797ab753f911aff80aefb86fd8b6fcc35525f3ab5f03e0b21bd31a86c6048af3cb2d98e0d3bf01da5cc4c39ff5370d331a4f1f7d5a4e0",
+        "shared_secret": "48893fecd82f7c3456af6a42d8f56325d21e08c10fa81299986aaff54cde7b49",
+        "key_schedule_context": "008fc3aeb832490a4b5ab3e42023287db29a1f4bc7c222c0df228727b70a4021127f1ff3fd1aa97af7e5d473e1cb01ba74831133d9659b6c26b03a038a49a84074",
+        "secret": "520da82c752ee6e0be7aafbad57a62535d266b6333513d3eb94cb497dceaf94e",
+        "key": "ee16802a936d5f544771131900ee6973d0551de9e852ece2ef34bf0d5f9e1d1d",
+        "base_nonce": "9bc50980832a7b4b58c40161",
+        "exporter_secret": "a8e9a7e62621879fdc89cea7da8e6153458f463e2851baaf009a7461d699cfb6",
+        "encryptions": [
+          {
+            "sequence": 0,
+            "aad": "436f756e742d30",
+            "ct": "58c61a45059d0c5704560e9d88b564a8b63f1364b8d1fcb3c4c6ddc1d291742465e902cd216f8908da49f8f96f",
+            "nonce": "9bc50980832a7b4b58c40161",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 1,
+            "aad": "436f756e742d31",
+            "ct": "b4e7c90d1dd62cb563694956eb517ab55d5e7d1f6366a0066c04ababaa444dbaf60a30d7bb7d3e91b969762dee",
+            "nonce": "9bc50980832a7b4b58c40160",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 2,
+            "aad": "436f756e742d32",
+            "ct": "65463cc0e5fd16e1650a55fb37d5b6fe6e5ac5b6f6e8c2640cfb0fcd528dc37bc0963b5c53d6238c42d447ddf4",
+            "nonce": "9bc50980832a7b4b58c40163",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 4,
+            "aad": "436f756e742d34",
+            "ct": "8537ff19240d613badd398dbeedf0338ca9f549bad6775ae8c3a672666057f6709e0931155cd1cae7071c6fd27",
+            "nonce": "9bc50980832a7b4b58c40165",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 255,
+            "aad": "436f756e742d323535",
+            "ct": "2bcdb6aa31cf9b85855aa22c18ee7feb783b26d5f8fae4554a409845810bdac0fc06bdce6c60a37efb45a106eb",
+            "nonce": "9bc50980832a7b4b58c4019e",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 256,
+            "aad": "436f756e742d323536",
+            "ct": "fcc4c798b73d45d4a241f4d05886befed63b8bdf0252454072c9f6170f6e262f2738cf2ea290053b2181ad46d6",
+            "nonce": "9bc50980832a7b4b58c40061",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          }
+        ]
+      },
+      {
+        "mode": 2,
+        "kem_id": 16,
+        "kdf_id": 1,
+        "aead_id": 2,
+        "info": "4f6465206f6e2061204772656369616e2055726e",
+        "ikmR": "3c56756948f1c27aed3eb27a923c891dc073eccf94bb6c1b64a8bfaa95f1f8f7",
+        "ikmS": "0f3def8cc45967f86c566f2c2a7decedff0d5f8b20a34ab65318144c80cb6b2b",
+        "ikmE": "d6c49e442aad90bcc1bc0d166e5c4d3df845c803ba08b8a4d891af2eeae4f97e",
+        "skRm": "d9f10996a02cd6c9dbda1d1f225f18f781ea3c893b8c2a6cb2e266e59f3cd9a9",
+        "skSm": "6e7b14befe49443dc501def1cc2f0f293d9c5cfa045a23e9a2e0e7703b42705d",
+        "skEm": "7a6cb29fab4e249d1796f95645288a6504d2167c7ff463bc447ab6022462af42",
+        "pkRm": "04cd38ef80923e26f157e06c9887f80177c97e1005a41104127271237f946df22eda13d40801bce6184f1a631c44b0807a1a5e8d039975ed0f6079fcbd2dfe6652",
+        "pkSm": "04ece9b48cc98ee03ba742fe1218a3fbec960cc34b6e1defdcd3285276f39028e95b90f9526607565888766a1101f429dc3ec87364b5c8c613f0a081881950427f",
+        "pkEm": "04a7aeac79fda402674ef247c12d6f5fdfd21498d896b67ff04ec181382d4516b7662be32b4a2ae817c2d57104ecb6fcaa527438939810612d1b3d0af36ffc66ce",
+        "enc": "04a7aeac79fda402674ef247c12d6f5fdfd21498d896b67ff04ec181382d4516b7662be32b4a2ae817c2d57104ecb6fcaa527438939810612d1b3d0af36ffc66ce",
+        "shared_secret": "4b6e403bf494c60342caaa46b3738ee0423892720751607338034b0a067cc1db",
+        "key_schedule_context": "028fc3aeb832490a4b5ab3e42023287db29a1f4bc7c222c0df228727b70a4021127f1ff3fd1aa97af7e5d473e1cb01ba74831133d9659b6c26b03a038a49a84074",
+        "secret": "163d292303b7947b7b4178e7e5dd259e8ebad6644d6e0a3fb2f2b69fd26c1f16",
+        "key": "640064834667025be3ce7abf1eb42ccc0dea2db9782b9823519f474e054524e7",
+        "base_nonce": "29240057274f71e55bfcca28",
+        "exporter_secret": "5b03fe338463543c9d4b195ef8f9c5a914a7503a2a490efc6b6a466f5f85f306",
+        "encryptions": [
+          {
+            "sequence": 0,
+            "aad": "436f756e742d30",
+            "ct": "59b9890aabf94c1d502c39d8d356989ab0880ed43e984255db7b32a8d7b0ad5beba799a4ec326a0ddca3dd5e5d",
+            "nonce": "29240057274f71e55bfcca28",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 1,
+            "aad": "436f756e742d31",
+            "ct": "0af0da6775648ef8311c9267819d46ac3b8453d1e2bd7332ed49257527c7f789009ea2d3e80d61218d40d06755",
+            "nonce": "29240057274f71e55bfcca29",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 2,
+            "aad": "436f756e742d32",
+            "ct": "8cd5bcf23b4f26a96f8faa323f336f5fd46837c15f405b47300a4de88a82d087bf3b7129ea9a53154586c960a2",
+            "nonce": "29240057274f71e55bfcca2a",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 4,
+            "aad": "436f756e742d34",
+            "ct": "c475dd501f14a9834952e138d16be954b8f1104e0709213e55c2a02f201eba4ca3156b65401bf81d5a8e97461c",
+            "nonce": "29240057274f71e55bfcca2c",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 255,
+            "aad": "436f756e742d323535",
+            "ct": "1288e097b30e71ad5f6198f23ac3a2634c2fbd575fd302e5eca7968114990fc3aba085eefcbe803e4130c63ff6",
+            "nonce": "29240057274f71e55bfccad7",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          },
+          {
+            "sequence": 256,
+            "aad": "436f756e742d323536",
+            "ct": "df400deaab08719cdc7b278b9d2daf898e6aec30e0b1746552d53a20397c519c409a8b73e5e6672985a09c0942",
+            "nonce": "29240057274f71e55bfccb28",
+            "pt": "4265617574792069732074727574682c20747275746820626561757479"
+          }
+        ]
+      }
+    ]
+  }
+}

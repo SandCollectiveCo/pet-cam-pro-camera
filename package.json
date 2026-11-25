@@ -1,0 +1,24 @@
+{
+  "name": "petcam-web-camera",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pet Cam Pro in a browser: the page a temporary camera runs",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node test/run-node.mjs",
+    "test:browsers": "node test/run-browsers.mjs",
+    "test:release": "node test/run-release.mjs",
+    "build": "node tools/build.mjs",
+    "verify": "node tools/verify-build.mjs",
+    "dev": "node dev/server.mjs",
+    "shots": "node tools/shots.mjs",
+    "vectors": "node tools/sync-vectors.mjs",
+    "test:release-key": "node test/run-release-key.mjs",
+    "watch": "node tools/watch.mjs",
+    "release:key": "node tools/release-key.mjs make",
+    "release:sign": "node tools/sign-release.mjs"
+  }
+}

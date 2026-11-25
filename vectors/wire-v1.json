@@ -1,0 +1,2393 @@
+{
+  "version": 1,
+  "about": [
+    "The JSON inside every sealed message, and on the peer data channel, as examples: docs/API.md (Sealed messages, Devices, Realtime, Events). Everything here is snake_case, and is what gets sealed (sealed-v1.json) or sent over the call's own data channel; the server reads none of it.",
+    "`apple` says what the Apple apps make of `json` as of 1.0.2: \"takes\" (it reads), or \"refuses\" (it fails to read, and the whole message is dropped as if it never came). `reads` is what they read it as, where that isn't the value itself: an unknown value read as a known one, a default, a range tidied. `then` is a rule that follows reading it, in words.",
+    "For another app: send nothing an Apple build in the field refuses (a new event kind, quality cap or device role goes into the Apple apps first, and is sent only once that build is out: docs/ANDROID.md § 4), read what `reads` says the same way, and never fail on a value or a field you don't know.",
+    "JSON is read as values: key order and how a number is written (1 or 1.0) don't matter, but a number is never text and true is never 1.",
+    "Made by server/scripts/vectors.mjs from fixed keys that were made up for these files; nothing here was ever a real home's. No vector is ever removed: a format the apps stop opening stays, as one that must fail. Read by SharedTests/WireVectorTests.swift and server/test/vectors.test.ts."
+  ],
+  "sealed": {
+    "camera_status": {
+      "what": "A camera's `status`: CameraStatus, with `sent_at`",
+      "context": "petcam.status.v1|<camera id>",
+      "cases": [
+        {
+          "name": "everything",
+          "json": {
+            "battery": 0.82,
+            "charging": true,
+            "thermal": "nominal",
+            "armed": true,
+            "night_light": false,
+            "viewers": 1,
+            "quality": "auto",
+            "sound_level_db": -48.5,
+            "last_event_at": 1767225540000,
+            "camera_position": "back",
+            "zoom": 1,
+            "zoom_range": {
+              "min": 0.5,
+              "max": 9,
+              "lenses": [
+                0.5,
+                1,
+                2,
+                3
+              ]
+            },
+            "app_version": "1.0.2 (27)",
+            "no_video": null,
+            "light": "torch",
+            "orientation": "auto",
+            "detection": {
+              "motion": true,
+              "motion_sensitivity": 3,
+              "sounds": true,
+              "sound_sensitivity": 3,
+              "alarms": true,
+              "cooldown_seconds": 10,
+              "record_clips": true,
+              "upload_clips": true
+            },
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "no_video": null,
+            "orientation": "auto",
+            "zoom": 1,
+            "zoom_range": {
+              "min": 0.5,
+              "max": 9,
+              "lenses": [
+                0.5,
+                1,
+                2,
+                3
+              ]
+            },
+            "flips_camera": true,
+            "torch_lit": true,
+            "has_detection": true
+          },
+          "why": "every field docs/API.md lists"
+        },
+        {
+          "name": "nothing",
+          "json": {},
+          "apple": "takes",
+          "reads": {
+            "no_video": null,
+            "orientation": null,
+            "zoom": null,
+            "zoom_range": null,
+            "flips_camera": false,
+            "torch_lit": false,
+            "has_detection": false
+          },
+          "why": "every field is optional: a camera from an older build sends fewer"
+        },
+        {
+          "name": "all_null",
+          "json": {
+            "battery": null,
+            "charging": null,
+            "thermal": null,
+            "armed": null,
+            "night_light": null,
+            "viewers": null,
+            "quality": null,
+            "sound_level_db": null,
+            "last_event_at": null,
+            "camera_position": null,
+            "zoom": null,
+            "zoom_range": null,
+            "app_version": null,
+            "no_video": null,
+            "light": null,
+            "orientation": null,
+            "detection": null,
+            "sent_at": null
+          },
+          "apple": "takes",
+          "reads": {
+            "no_video": null,
+            "orientation": null,
+            "zoom_range": null,
+            "has_detection": false
+          },
+          "why": "null reads as missing"
+        },
+        {
+          "name": "cant_see",
+          "json": {
+            "armed": true,
+            "no_video": "background",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "no_video": "background"
+          },
+          "why": "a reason this build knows"
+        },
+        {
+          "name": "cant_see_for_a_new_reason",
+          "json": {
+            "armed": true,
+            "no_video": "blocked",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "no_video": "stalled"
+          },
+          "why": "a reason it doesn't know reads as stalled: what docs/ANDROID.md plans for Android's camera switch"
+        },
+        {
+          "name": "turned_a_new_way",
+          "json": {
+            "orientation": "sideways"
+          },
+          "apple": "takes",
+          "reads": {
+            "orientation": "auto"
+          },
+          "why": "an orientation it doesn't know reads as auto"
+        },
+        {
+          "name": "held_upside_down",
+          "json": {
+            "orientation": "landscape_upside_down"
+          },
+          "apple": "takes",
+          "reads": {
+            "orientation": "landscape_upside_down"
+          },
+          "why": "one it knows"
+        },
+        {
+          "name": "words_it_doesnt_know",
+          "json": {
+            "thermal": "melting",
+            "quality": "ultra",
+            "light": "lamp",
+            "camera_position": "periscope",
+            "app_version": "9.9 (999)"
+          },
+          "apple": "takes",
+          "reads": {
+            "flips_camera": false,
+            "torch_lit": false
+          },
+          "why": "these travel as text and are compared where they're used: an unknown light is not the torch, an unknown position doesn't flip"
+        },
+        {
+          "name": "front_camera",
+          "json": {
+            "camera_position": "front",
+            "light": "screen",
+            "night_light": true
+          },
+          "apple": "takes",
+          "reads": {
+            "flips_camera": true,
+            "torch_lit": false
+          },
+          "why": "a camera with a front and a back flips; the screen is the light"
+        },
+        {
+          "name": "fields_from_later",
+          "json": {
+            "armed": true,
+            "microphone": "blocked",
+            "lens": {
+              "name": "macro"
+            },
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "no_video": null
+          },
+          "why": "fields no build knows are passed over"
+        },
+        {
+          "name": "detection_with_a_setting_missing",
+          "json": {
+            "armed": true,
+            "detection": {
+              "motion": true,
+              "motion_sensitivity": 3,
+              "sounds": true,
+              "sound_sensitivity": 3,
+              "alarms": true,
+              "cooldown_seconds": 10,
+              "record_clips": true
+            }
+          },
+          "apple": "refuses",
+          "why": "inside `detection` every setting is required: with one missing the whole status fails to read, and the camera shows as having none"
+        },
+        {
+          "name": "detection_with_a_word_for_a_number",
+          "json": {
+            "armed": true,
+            "detection": {
+              "motion": true,
+              "motion_sensitivity": "high",
+              "sounds": true,
+              "sound_sensitivity": 3,
+              "alarms": true,
+              "cooldown_seconds": 10,
+              "record_clips": true,
+              "upload_clips": true
+            }
+          },
+          "apple": "refuses",
+          "why": "a sensitivity is 1 to 5"
+        },
+        {
+          "name": "zoom_range_with_nothing_in_it",
+          "json": {
+            "zoom": 2,
+            "zoom_range": {}
+          },
+          "apple": "takes",
+          "reads": {
+            "zoom": 1,
+            "zoom_range": {
+              "min": 1,
+              "max": 1,
+              "lenses": []
+            }
+          },
+          "why": "a range missing its ends is 1 to 1, and the zoom is kept within it"
+        },
+        {
+          "name": "zoom_range_untidy",
+          "json": {
+            "zoom": 20,
+            "zoom_range": {
+              "min": 0,
+              "max": 500,
+              "lenses": [
+                3,
+                1,
+                1.01,
+                0.05,
+                2,
+                700
+              ]
+            }
+          },
+          "apple": "takes",
+          "reads": {
+            "zoom": 20,
+            "zoom_range": {
+              "min": 0.1,
+              "max": 100,
+              "lenses": [
+                1,
+                2,
+                3
+              ]
+            }
+          },
+          "why": "read as a range a viewer can draw: min at least 0.1, max at most 100, lenses in order, inside the range, none within 3% of the one before"
+        },
+        {
+          "name": "zoom_range_with_one_lens",
+          "json": {
+            "zoom": 1,
+            "zoom_range": {
+              "min": 1,
+              "max": 3,
+              "lenses": [
+                1
+              ]
+            }
+          },
+          "apple": "takes",
+          "reads": {
+            "zoom_range": {
+              "min": 1,
+              "max": 3,
+              "lenses": []
+            }
+          },
+          "why": "one lens is no lens buttons: a camera that zooms digitally"
+        },
+        {
+          "name": "zoom_range_backwards",
+          "json": {
+            "zoom_range": {
+              "min": 2,
+              "max": 1
+            }
+          },
+          "apple": "takes",
+          "reads": {
+            "zoom": 2,
+            "zoom_range": {
+              "min": 2,
+              "max": 2,
+              "lenses": []
+            }
+          },
+          "why": "a max below its min is the min"
+        },
+        {
+          "name": "zoom_as_words",
+          "json": {
+            "zoom": "2x"
+          },
+          "apple": "refuses",
+          "why": "a number written as text"
+        },
+        {
+          "name": "battery_as_words",
+          "json": {
+            "battery": "82%"
+          },
+          "apple": "refuses",
+          "why": "a number written as text"
+        },
+        {
+          "name": "armed_as_a_number",
+          "json": {
+            "armed": 1
+          },
+          "apple": "refuses",
+          "why": "true or false, not 1"
+        }
+      ]
+    },
+    "event_details": {
+      "what": "An event's `details`: EventDetails",
+      "context": "petcam.event.v1|<camera id>|<event id>|<started_at>",
+      "cases": [
+        {
+          "name": "a_bark",
+          "json": {
+            "kind": "sound",
+            "label": "bark",
+            "score": 0.91,
+            "level_db": -21.5,
+            "bound_media": true,
+            "media_epoch": 1
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "sound",
+            "title": "Barking",
+            "media_epoch": 1
+          },
+          "why": "every field"
+        },
+        {
+          "name": "the_least",
+          "json": {
+            "kind": "motion"
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "motion",
+            "title": "Motion detected",
+            "media_epoch": null
+          },
+          "why": "only `kind` is required"
+        },
+        {
+          "name": "a_label_from_later",
+          "json": {
+            "kind": "sound",
+            "label": "parrot"
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "sound",
+            "title": "Noise detected"
+          },
+          "why": "a label it doesn't know gets its kind's own words"
+        },
+        {
+          "name": "couldnt_see",
+          "json": {
+            "kind": "no_video",
+            "no_video": "multitasking"
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "no_video",
+            "title": "Camera can't see",
+            "no_video": "multitasking"
+          },
+          "why": "the camera's own event for not seeing"
+        },
+        {
+          "name": "couldnt_see_for_a_new_reason",
+          "json": {
+            "kind": "no_video",
+            "no_video": "blocked"
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "no_video",
+            "no_video": "stalled"
+          },
+          "why": "a reason it doesn't know reads as stalled"
+        },
+        {
+          "name": "during_no_picture",
+          "json": {
+            "kind": "sound",
+            "label": "bark",
+            "no_video": "background"
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "sound",
+            "title": "Barking",
+            "no_video": "background"
+          },
+          "why": "something heard while the camera couldn't see"
+        },
+        {
+          "name": "fields_from_later",
+          "json": {
+            "kind": "alarm",
+            "label": "smoke_alarm",
+            "confidence": "high",
+            "zones": [
+              1,
+              2
+            ]
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "alarm",
+            "title": "Smoke alarm sound"
+          },
+          "why": "fields no build knows are passed over"
+        },
+        {
+          "name": "nulls",
+          "json": {
+            "kind": "manual",
+            "label": null,
+            "score": null,
+            "level_db": null,
+            "no_video": null,
+            "bound_media": null,
+            "media_epoch": null
+          },
+          "apple": "takes",
+          "reads": {
+            "kind": "manual",
+            "title": "Saved clip",
+            "media_epoch": null
+          },
+          "why": "null reads as missing"
+        },
+        {
+          "name": "a_kind_from_later",
+          "json": {
+            "kind": "vibration",
+            "label": "washer"
+          },
+          "apple": "refuses",
+          "why": "a kind it doesn't know fails the details, so the event is never listed and its alert says only \"New activity\": nothing may send a new kind until the Apple apps that read it are out"
+        },
+        {
+          "name": "kind_in_capitals",
+          "json": {
+            "kind": "Motion"
+          },
+          "apple": "refuses",
+          "why": "kinds are lowercase"
+        },
+        {
+          "name": "no_kind",
+          "json": {
+            "label": "dog"
+          },
+          "apple": "refuses",
+          "why": "`kind` is required"
+        },
+        {
+          "name": "score_as_words",
+          "json": {
+            "kind": "motion",
+            "score": "0.4"
+          },
+          "apple": "refuses",
+          "why": "a number written as text"
+        },
+        {
+          "name": "media_epoch_as_words",
+          "json": {
+            "kind": "motion",
+            "media_epoch": "one"
+          },
+          "apple": "refuses",
+          "why": "an epoch is a number"
+        }
+      ]
+    },
+    "signal": {
+      "what": "A signal's `payload`",
+      "context": "petcam.signal.v1|<from id>|<to id>|<session>",
+      "cases": [
+        {
+          "name": "watch",
+          "json": {
+            "kind": "watch",
+            "audio": true,
+            "quality": "auto",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "why": "a viewer asks a camera to start a session"
+        },
+        {
+          "name": "watch_ready",
+          "json": {
+            "kind": "watch",
+            "audio": false,
+            "quality": "tile",
+            "warm": true,
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "why": "a ready connection, capped as a grid tile"
+        },
+        {
+          "name": "watch_with_a_cap_from_later",
+          "json": {
+            "kind": "watch",
+            "audio": true,
+            "quality": "ultra",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "a camera reads a cap it doesn't know as auto",
+          "why": "in a signal the cap travels as text"
+        },
+        {
+          "name": "watch_with_the_least",
+          "json": {
+            "kind": "watch",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "no `audio` is true, no `quality` is auto, no `warm` is false",
+          "why": "only `kind` is required to read it"
+        },
+        {
+          "name": "offer",
+          "json": {
+            "kind": "offer",
+            "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n",
+            "sig": "WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "applied only if `sig` checks out (sealed-v1.json, signatures)",
+          "why": "the camera's offer"
+        },
+        {
+          "name": "answer",
+          "json": {
+            "kind": "answer",
+            "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n",
+            "sig": "WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "applied only if `sig` checks out",
+          "why": "the viewer's answer"
+        },
+        {
+          "name": "candidate",
+          "json": {
+            "kind": "candidate",
+            "candidate": "candidate:1 1 udp 2122260223 192.0.2.10 54321 typ host",
+            "sdp_mid": "0",
+            "sdp_m_line_index": 0,
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "why": "an ICE candidate"
+        },
+        {
+          "name": "bye",
+          "json": {
+            "kind": "bye",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "a viewer takes a bye without a reason as a reason to try again",
+          "why": "the end of a session"
+        },
+        {
+          "name": "bye_keys_changed",
+          "json": {
+            "kind": "bye",
+            "reason": "keys_changed",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "why": "a reason this build knows"
+        },
+        {
+          "name": "bye_for_a_new_reason",
+          "json": {
+            "kind": "bye",
+            "reason": "battery_flat",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "a viewer takes a reason it doesn't know as a reason to try again",
+          "why": "reasons travel as text"
+        },
+        {
+          "name": "a_kind_from_later",
+          "json": {
+            "kind": "wave",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "nothing acts on a kind it doesn't know",
+          "why": "kinds travel as text"
+        },
+        {
+          "name": "no_time",
+          "json": {
+            "kind": "watch",
+            "audio": true
+          },
+          "apple": "takes",
+          "then": "dropped: a signal with no `sent_at`, or one two minutes or more from the receiver's clock, is never acted on",
+          "why": "it reads, and counts as stale"
+        },
+        {
+          "name": "no_kind",
+          "json": {
+            "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n",
+            "sent_at": 1767225600000
+          },
+          "apple": "refuses",
+          "why": "`kind` is required"
+        },
+        {
+          "name": "line_index_as_words",
+          "json": {
+            "kind": "candidate",
+            "candidate": "candidate:1",
+            "sdp_mid": "0",
+            "sdp_m_line_index": "zero",
+            "sent_at": 1767225600000
+          },
+          "apple": "refuses",
+          "why": "a number written as text"
+        },
+        {
+          "name": "watch_without_the_relay",
+          "json": {
+            "kind": "watch",
+            "audio": true,
+            "quality": "auto",
+            "relay": false,
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "relay": false
+          },
+          "then": "the camera sets the session up without the relay too, and says so in its offer; a camera from before the switch passes the field over",
+          "why": "the viewer's Relay switch is off"
+        },
+        {
+          "name": "offer_without_the_relay",
+          "json": {
+            "kind": "offer",
+            "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n",
+            "sig": "WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo",
+            "relay": false,
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "relay": false
+          },
+          "then": "a viewer that didn't ask for that sets no relay up either; `relay` is outside what `sig` covers, sealed with the rest, and only ever takes the relay away",
+          "why": "the camera's side has no relay for the session: its own Relay switch is off, or the viewer's"
+        },
+        {
+          "name": "watch_with_the_relay_said",
+          "json": {
+            "kind": "watch",
+            "audio": true,
+            "relay": true,
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "relay": true
+          },
+          "then": "the same as saying nothing: the apps send `relay` only as false",
+          "why": "missing is true"
+        },
+        {
+          "name": "watch_with_a_null_relay",
+          "json": {
+            "kind": "watch",
+            "relay": null,
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "reads": {
+            "relay": true
+          },
+          "why": "null reads as missing"
+        },
+        {
+          "name": "bye_relay_off",
+          "json": {
+            "kind": "bye",
+            "reason": "relay_off",
+            "sent_at": 1767225600000
+          },
+          "apple": "takes",
+          "then": "a viewer that knows the reason says the relay is off on that camera and doesn't ask again by itself; one from before takes it, like any reason it doesn't know, as a reason to try again",
+          "why": "a camera ending a session made without the relay whose path was relayed all the same"
+        },
+        {
+          "name": "relay_as_a_word",
+          "json": {
+            "kind": "watch",
+            "relay": "off",
+            "sent_at": 1767225600000
+          },
+          "apple": "refuses",
+          "why": "true or false"
+        }
+      ]
+    },
+    "command": {
+      "what": "A `command`: {\"command\": {\"name\", \"on\"?, \"value\"?, \"text\"?}, \"sent_at\", \"id\"}",
+      "context": "petcam.command.v1|<from id>|<camera id>",
+      "how": "`reads.fresh` is whether a camera whose clock says `now` carries it out, having already carried out the ids in `seen`: sent within two minutes either way, and not seen before.",
+      "cases": [
+        {
+          "name": "night_light",
+          "json": {
+            "command": {
+              "name": "night_light",
+              "on": true,
+              "value": 0.6
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "now": 1767225600000,
+          "seen": [],
+          "reads": {
+            "fresh": true
+          },
+          "why": "the Flashlight, with its brightness (0 to 1)"
+        },
+        {
+          "name": "torch",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "the torch by itself"
+        },
+        {
+          "name": "zoom",
+          "json": {
+            "command": {
+              "name": "zoom",
+              "value": 2
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "the zoom to go to"
+        },
+        {
+          "name": "play_sound",
+          "json": {
+            "command": {
+              "name": "play_sound",
+              "text": "chime"
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "a sound id"
+        },
+        {
+          "name": "arm",
+          "json": {
+            "command": {
+              "name": "arm",
+              "on": false
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "pause, or go live"
+        },
+        {
+          "name": "quality",
+          "json": {
+            "command": {
+              "name": "quality",
+              "text": "medium"
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "then": "a cap the camera doesn't know changes nothing",
+          "why": "the camera's own cap, for every viewer"
+        },
+        {
+          "name": "switch_camera",
+          "json": {
+            "command": {
+              "name": "switch_camera"
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "front to back, or back to front"
+        },
+        {
+          "name": "orientation",
+          "json": {
+            "command": {
+              "name": "orientation",
+              "text": "portrait"
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "then": "an orientation the camera doesn't know changes nothing",
+          "why": "which way the picture turns"
+        },
+        {
+          "name": "record",
+          "json": {
+            "command": {
+              "name": "record",
+              "on": true
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "then": "`snapshot`, which nothing sends now, is taken as `record`",
+          "why": "Save clip"
+        },
+        {
+          "name": "detect",
+          "json": {
+            "command": {
+              "name": "detect",
+              "text": "sounds",
+              "on": false
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "what starts an event: motion, sounds or alarms"
+        },
+        {
+          "name": "sensitivity",
+          "json": {
+            "command": {
+              "name": "sensitivity",
+              "text": "motion",
+              "value": 5
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "then": "kept within 1 to 5",
+          "why": "motion or sounds"
+        },
+        {
+          "name": "cooldown",
+          "json": {
+            "command": {
+              "name": "cooldown",
+              "value": 15
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "then": "kept within 0 to 120 seconds",
+          "why": "quiet time between events"
+        },
+        {
+          "name": "record_clips",
+          "json": {
+            "command": {
+              "name": "record_clips",
+              "on": false
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "whether clips are recorded"
+        },
+        {
+          "name": "upload_clips",
+          "json": {
+            "command": {
+              "name": "upload_clips",
+              "on": true
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "why": "whether they go up"
+        },
+        {
+          "name": "peek",
+          "json": {
+            "command": {
+              "name": "peek",
+              "value": 30
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "then": "at most 35 seconds",
+          "why": "about a frame a second for that long"
+        },
+        {
+          "name": "a_name_from_later",
+          "json": {
+            "command": {
+              "name": "self_clean",
+              "on": true
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "then": "a camera does nothing for a name it doesn't know, and sends its status as after any command",
+          "why": "names travel as text"
+        },
+        {
+          "name": "fields_from_later",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true,
+              "colour": "red"
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001",
+            "via": "watch"
+          },
+          "apple": "takes",
+          "why": "fields no build knows are passed over"
+        },
+        {
+          "name": "at_the_edge_of_two_minutes",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "sent_at": 1767225480001,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "now": 1767225600000,
+          "seen": [],
+          "reads": {
+            "fresh": true
+          },
+          "why": "sent just under two minutes before the camera's clock"
+        },
+        {
+          "name": "two_minutes_old",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "sent_at": 1767225480000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "now": 1767225600000,
+          "seen": [],
+          "reads": {
+            "fresh": false
+          },
+          "why": "two minutes old: a replay, or one that waited too long"
+        },
+        {
+          "name": "two_minutes_ahead",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "sent_at": 1767225720000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "now": 1767225600000,
+          "seen": [],
+          "reads": {
+            "fresh": false
+          },
+          "why": "two minutes ahead of the camera's clock: the window runs both ways"
+        },
+        {
+          "name": "just_under_two_minutes_ahead",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "sent_at": 1767225719999,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "now": 1767225600000,
+          "seen": [],
+          "reads": {
+            "fresh": true
+          },
+          "why": "clocks differ"
+        },
+        {
+          "name": "carried_out_before",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "takes",
+          "now": 1767225600000,
+          "seen": [
+            "0c0c0c0c-0000-4000-8000-00000000c001"
+          ],
+          "reads": {
+            "fresh": false
+          },
+          "why": "its id is one the camera carried out in the last five minutes: a replay"
+        },
+        {
+          "name": "no_id",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "sent_at": 1767225600000
+          },
+          "apple": "refuses",
+          "why": "`id` is required: without one a replay can't be told from a new command"
+        },
+        {
+          "name": "no_time",
+          "json": {
+            "command": {
+              "name": "torch",
+              "on": true
+            },
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "refuses",
+          "why": "`sent_at` is required"
+        },
+        {
+          "name": "no_name",
+          "json": {
+            "command": {
+              "on": true
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "refuses",
+          "why": "a command's `name` is required"
+        },
+        {
+          "name": "bare",
+          "json": {
+            "name": "torch",
+            "on": true
+          },
+          "apple": "refuses",
+          "why": "the command without what wraps it"
+        },
+        {
+          "name": "value_as_words",
+          "json": {
+            "command": {
+              "name": "zoom",
+              "value": "two"
+            },
+            "sent_at": 1767225600000,
+            "id": "0c0c0c0c-0000-4000-8000-00000000c001"
+          },
+          "apple": "refuses",
+          "why": "a number written as text"
+        }
+      ]
+    },
+    "alert_prefs": {
+      "what": "A device's `alert_prefs`: AlertPrefs",
+      "context": "petcam.alerts.v1|<device id>",
+      "how": "`reads.allows` is whether an event of each kind reaches the device.",
+      "cases": [
+        {
+          "name": "nothing_said",
+          "json": {},
+          "apple": "takes",
+          "reads": {
+            "allows": {
+              "motion": true,
+              "sound": true,
+              "alarm": true,
+              "manual": true,
+              "no_video": true
+            }
+          },
+          "why": "missing means on"
+        },
+        {
+          "name": "no_motion",
+          "json": {
+            "notify_motion": false
+          },
+          "apple": "takes",
+          "reads": {
+            "allows": {
+              "motion": false,
+              "sound": true,
+              "alarm": true,
+              "manual": true,
+              "no_video": true
+            }
+          },
+          "why": "one kind off"
+        },
+        {
+          "name": "everything_off",
+          "json": {
+            "notify_motion": false,
+            "notify_sound": false,
+            "notify_alarm": false
+          },
+          "apple": "takes",
+          "reads": {
+            "allows": {
+              "motion": false,
+              "sound": false,
+              "alarm": false,
+              "manual": true,
+              "no_video": true
+            }
+          },
+          "why": "saved clips, and a camera that can't see, reach everyone whatever they turned off"
+        },
+        {
+          "name": "nulls",
+          "json": {
+            "notify_motion": null,
+            "notify_sound": null,
+            "notify_alarm": null
+          },
+          "apple": "takes",
+          "reads": {
+            "allows": {
+              "motion": true,
+              "sound": true,
+              "alarm": true,
+              "manual": true,
+              "no_video": true
+            }
+          },
+          "why": "null reads as missing"
+        },
+        {
+          "name": "a_kind_from_later",
+          "json": {
+            "notify_sound": false,
+            "notify_parcel": false
+          },
+          "apple": "takes",
+          "reads": {
+            "allows": {
+              "motion": true,
+              "sound": false,
+              "alarm": true,
+              "manual": true,
+              "no_video": true
+            }
+          },
+          "why": "fields no build knows are passed over"
+        },
+        {
+          "name": "no_as_a_word",
+          "json": {
+            "notify_sound": "no"
+          },
+          "apple": "refuses",
+          "why": "true or false"
+        }
+      ]
+    },
+    "name": {
+      "what": "A device's `name`, the home's `name`, a device's `person`",
+      "context": "petcam.name.v1|<device id>, petcam.home.v1|<household id>, petcam.person.v1|<device id>",
+      "cases": [
+        {
+          "name": "a_name",
+          "json": {
+            "name": "Kitchen iPad"
+          },
+          "apple": "takes",
+          "reads": {
+            "name": "Kitchen iPad"
+          },
+          "why": "the same shape for a device's name, the home's, and a person's"
+        },
+        {
+          "name": "outside_ascii",
+          "json": {
+            "name": "Küche 🐶"
+          },
+          "apple": "takes",
+          "reads": {
+            "name": "Küche 🐶"
+          },
+          "why": "UTF-8"
+        },
+        {
+          "name": "empty",
+          "json": {
+            "name": ""
+          },
+          "apple": "takes",
+          "reads": {
+            "name": ""
+          },
+          "why": "it reads; the apps send none"
+        },
+        {
+          "name": "with_more",
+          "json": {
+            "name": "Hall",
+            "icon": "door"
+          },
+          "apple": "takes",
+          "reads": {
+            "name": "Hall"
+          },
+          "why": "fields no build knows are passed over"
+        },
+        {
+          "name": "nothing",
+          "json": {},
+          "apple": "refuses",
+          "why": "`name` is required"
+        },
+        {
+          "name": "a_number",
+          "json": {
+            "name": 12
+          },
+          "apple": "refuses",
+          "why": "a name is text"
+        },
+        {
+          "name": "bare",
+          "json": "Kitchen iPad",
+          "apple": "refuses",
+          "why": "the name without its object"
+        }
+      ]
+    },
+    "invite_token": {
+      "what": "An invite's `sealed_token`",
+      "context": "petcam.invite.v1|<invite id>",
+      "cases": [
+        {
+          "name": "with_its_end",
+          "json": {
+            "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk",
+            "expires_at": 1767312000000
+          },
+          "apple": "takes",
+          "reads": {
+            "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk",
+            "expires_at": 1767312000000
+          },
+          "why": "as builds since 2026-11-04 seal it"
+        },
+        {
+          "name": "without_its_end",
+          "json": {
+            "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk"
+          },
+          "apple": "takes",
+          "reads": {
+            "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk",
+            "expires_at": null
+          },
+          "why": "from a build before: the server's listing says when it ends"
+        },
+        {
+          "name": "nothing",
+          "json": {},
+          "apple": "refuses",
+          "why": "`token` is required"
+        },
+        {
+          "name": "end_as_words",
+          "json": {
+            "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk",
+            "expires_at": "tomorrow"
+          },
+          "apple": "refuses",
+          "why": "a time is milliseconds"
+        }
+      ]
+    },
+    "account": {
+      "what": "A device's `account`",
+      "context": "petcam.account.v1|<device id>",
+      "how": "`reads.vouches_for` is the account keys the device vouches for: `sub` and `keys`.",
+      "cases": [
+        {
+          "name": "with_its_ways",
+          "json": {
+            "sub": "000123.0123456789abcdef0123456789abcdef.0123",
+            "account_id": "4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07",
+            "keys": [
+              "google:72fcb2e8fe7390bd3522fff3c739ecbdd7a61fd6cfcb4e07be610bd14f9cb398"
+            ]
+          },
+          "apple": "takes",
+          "reads": {
+            "sub": "000123.0123456789abcdef0123456789abcdef.0123",
+            "account_id": "4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07",
+            "vouches_for": [
+              "000123.0123456789abcdef0123456789abcdef.0123",
+              "google:72fcb2e8fe7390bd3522fff3c739ecbdd7a61fd6cfcb4e07be610bd14f9cb398"
+            ]
+          },
+          "why": "its way's account key, its account, and the other ways it checked itself"
+        },
+        {
+          "name": "one_way",
+          "json": {
+            "sub": "google:72fcb2e8fe7390bd3522fff3c739ecbdd7a61fd6cfcb4e07be610bd14f9cb398",
+            "account_id": "4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07"
+          },
+          "apple": "takes",
+          "reads": {
+            "sub": "google:72fcb2e8fe7390bd3522fff3c739ecbdd7a61fd6cfcb4e07be610bd14f9cb398",
+            "account_id": "4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07",
+            "vouches_for": [
+              "google:72fcb2e8fe7390bd3522fff3c739ecbdd7a61fd6cfcb4e07be610bd14f9cb398"
+            ]
+          },
+          "why": "`keys` is left out when there are none beside `sub`"
+        },
+        {
+          "name": "from_before_ways",
+          "json": {
+            "sub": "000123.0123456789abcdef0123456789abcdef.0123"
+          },
+          "apple": "takes",
+          "reads": {
+            "sub": "000123.0123456789abcdef0123456789abcdef.0123",
+            "account_id": null,
+            "vouches_for": [
+              "000123.0123456789abcdef0123456789abcdef.0123"
+            ]
+          },
+          "why": "a build from before ways seals `sub` alone"
+        },
+        {
+          "name": "by_email",
+          "json": {
+            "sub": "email:4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07",
+            "account_id": "4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07"
+          },
+          "apple": "takes",
+          "reads": {
+            "sub": "email:4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07",
+            "vouches_for": [
+              "email:4b2f8d0e-9c1a-4e7b-8f3d-2a6c5e1b9d07"
+            ]
+          },
+          "why": "an address has only the account's id"
+        },
+        {
+          "name": "nothing",
+          "json": {},
+          "apple": "refuses",
+          "why": "`sub` is required"
+        },
+        {
+          "name": "keys_not_a_list",
+          "json": {
+            "sub": "000123.0123456789abcdef0123456789abcdef.0123",
+            "keys": "google:72fcb2e8fe7390bd3522fff3c739ecbdd7a61fd6cfcb4e07be610bd14f9cb398"
+          },
+          "apple": "refuses",
+          "why": "`keys` is a list"
+        }
+      ]
+    }
+  },
+  "data_channel": {
+    "what": "Messages on the data channel `petcam`, straight between a camera and a viewer inside their call (docs/API.md, Peer data channel)",
+    "cases": [
+      {
+        "name": "camera_stats",
+        "json": {
+          "type": "camera_stats",
+          "stats": {
+            "step": "1080p30",
+            "width": 1920,
+            "height": 1080,
+            "fps": 30,
+            "target_kbps": 4800,
+            "bandwidth_kbps": 9600,
+            "encode_ms": 4.2,
+            "send_queue_ms": 1.8,
+            "limitation": "none",
+            "thermal": "nominal",
+            "encoder": "VideoToolbox",
+            "mic_percent": 100
+          }
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "camera_stats",
+          "step": "1080p30"
+        },
+        "why": "camera to viewer, every two seconds"
+      },
+      {
+        "name": "camera_stats_least",
+        "json": {
+          "type": "camera_stats",
+          "stats": {
+            "step": "360p15"
+          }
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "camera_stats",
+          "step": "360p15"
+        },
+        "why": "every field of `stats` but `step` is optional"
+      },
+      {
+        "name": "camera_stats_from_later",
+        "json": {
+          "type": "camera_stats",
+          "stats": {
+            "step": "2160p30",
+            "width": 1920,
+            "height": 1080,
+            "fps": 30,
+            "target_kbps": 4800,
+            "bandwidth_kbps": 9600,
+            "encode_ms": 4.2,
+            "send_queue_ms": 1.8,
+            "limitation": "none",
+            "thermal": "nominal",
+            "encoder": "MediaCodec",
+            "mic_percent": 100,
+            "gpu_percent": 12
+          }
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "camera_stats",
+          "step": "2160p30"
+        },
+        "why": "a step, an encoder and a field no build knows: all text, or passed over"
+      },
+      {
+        "name": "camera_stats_without_a_step",
+        "json": {
+          "type": "camera_stats",
+          "stats": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "apple": "refuses",
+        "why": "`step` is required in `stats`: without it the message fails to read"
+      },
+      {
+        "name": "cap",
+        "json": {
+          "type": "cap",
+          "quality": "medium"
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "cap",
+          "quality": "medium"
+        },
+        "why": "the viewer's quality choice changed"
+      },
+      {
+        "name": "cap_tile",
+        "json": {
+          "type": "cap",
+          "quality": "tile_small"
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "cap",
+          "quality": "tile_small"
+        },
+        "why": "a grid tile's own cap"
+      },
+      {
+        "name": "cap_from_later",
+        "json": {
+          "type": "cap",
+          "quality": "ultra"
+        },
+        "apple": "refuses",
+        "why": "a cap it doesn't know fails the whole message, so the camera keeps the cap it had: nothing may send a new cap until the Apple apps that read it are out"
+      },
+      {
+        "name": "cap_without_one",
+        "json": {
+          "type": "cap"
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "cap",
+          "quality": null
+        },
+        "then": "the camera keeps the cap it had",
+        "why": "it reads, and says nothing"
+      },
+      {
+        "name": "listen_off",
+        "json": {
+          "type": "listen",
+          "on": false
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "listen",
+          "on": false
+        },
+        "why": "the viewer stopped listening"
+      },
+      {
+        "name": "listen",
+        "json": {
+          "type": "listen"
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "listen",
+          "on": null
+        },
+        "then": "no `on` is true",
+        "why": "sessions start out listening"
+      },
+      {
+        "name": "video_off",
+        "json": {
+          "type": "video",
+          "on": false
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "video",
+          "on": false
+        },
+        "why": "listening from the lock screen: sound only"
+      },
+      {
+        "name": "play",
+        "json": {
+          "type": "play"
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "play"
+        },
+        "why": "a ready session starts"
+      },
+      {
+        "name": "pause",
+        "json": {
+          "type": "pause"
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "pause"
+        },
+        "why": "and goes back to ready"
+      },
+      {
+        "name": "a_type_from_later",
+        "json": {
+          "type": "wave",
+          "strength": 3
+        },
+        "apple": "takes",
+        "reads": {
+          "type": "wave"
+        },
+        "then": "nothing acts on a type it doesn't know",
+        "why": "types travel as text"
+      },
+      {
+        "name": "a_cap_riding_along",
+        "json": {
+          "type": "listen",
+          "on": true,
+          "quality": "ultra"
+        },
+        "apple": "refuses",
+        "why": "`quality` is read strictly whatever the type: an unknown one anywhere fails the message"
+      },
+      {
+        "name": "no_type",
+        "json": {
+          "on": true
+        },
+        "apple": "refuses",
+        "why": "`type` is required"
+      },
+      {
+        "name": "on_as_a_number",
+        "json": {
+          "type": "listen",
+          "on": 0
+        },
+        "apple": "refuses",
+        "why": "true or false, not 0"
+      }
+    ]
+  },
+  "plain": {
+    "device": {
+      "what": "A Device as the server lists it, for the values the apps read strictly",
+      "cases": [
+        {
+          "name": "a_camera",
+          "json": {
+            "id": "c0000000-0000-4000-8000-00000000000c",
+            "name": {
+              "sealed": "BAAAAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB"
+            },
+            "role": "camera",
+            "platform": "ipados",
+            "model": "iPad13,1",
+            "household_id": "11111111-2222-4333-8444-555555555555",
+            "created_at": 1767139200000,
+            "last_seen_at": 1767225600000,
+            "online": true,
+            "status": {
+              "sealed": "BAAAAAECAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC"
+            },
+            "prefs": {
+              "notify_offline": true,
+              "muted_cameras": []
+            },
+            "alert_prefs": null,
+            "public_key": "BFkat3HrvP1tnLkJTRBlKK3Rpp1EwsH2J_CJ7Fi5xhrfn05qvw0EXAxpOjxorXyXynK-ZN70om_s0mPdmKkngPA",
+            "key_attestation": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+            "key_epoch": 1,
+            "account": null,
+            "person": null
+          },
+          "apple": "takes",
+          "reads": {
+            "role": "camera",
+            "platform": "ipados",
+            "model": "iPad13,1"
+          },
+          "why": "as the server lists a device (docs/API.md, Devices): not sealed, but what it seals rides inside"
+        },
+        {
+          "name": "the_least",
+          "json": {
+            "id": "d0000000-0000-4000-8000-00000000000d",
+            "role": "viewer",
+            "platform": "ios",
+            "created_at": 1767225600000,
+            "online": false
+          },
+          "apple": "takes",
+          "reads": {
+            "role": "viewer",
+            "platform": "ios",
+            "model": null
+          },
+          "why": "what a device is read from at the least"
+        },
+        {
+          "name": "a_platform_from_later",
+          "json": {
+            "id": "e0000000-0000-4000-8000-00000000000e",
+            "name": {
+              "sealed": "BAAAAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB"
+            },
+            "role": "viewer",
+            "platform": "android",
+            "model": "Pixel 9",
+            "household_id": "11111111-2222-4333-8444-555555555555",
+            "created_at": 1767139200000,
+            "last_seen_at": 1767225600000,
+            "online": true,
+            "status": {
+              "sealed": "BAAAAAECAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC"
+            },
+            "prefs": {
+              "notify_offline": true,
+              "muted_cameras": []
+            },
+            "alert_prefs": null,
+            "public_key": "BFkat3HrvP1tnLkJTRBlKK3Rpp1EwsH2J_CJ7Fi5xhrfn05qvw0EXAxpOjxorXyXynK-ZN70om_s0mPdmKkngPA",
+            "key_attestation": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+            "key_epoch": 1,
+            "account": null,
+            "person": null
+          },
+          "apple": "takes",
+          "reads": {
+            "role": "viewer",
+            "platform": "android",
+            "model": "Pixel 9"
+          },
+          "why": "`platform` and `model` travel as text: an Android device reads"
+        },
+        {
+          "name": "a_role_from_later",
+          "json": {
+            "id": "c0000000-0000-4000-8000-00000000000c",
+            "name": {
+              "sealed": "BAAAAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB"
+            },
+            "role": "doorbell",
+            "platform": "ipados",
+            "model": "iPad13,1",
+            "household_id": "11111111-2222-4333-8444-555555555555",
+            "created_at": 1767139200000,
+            "last_seen_at": 1767225600000,
+            "online": true,
+            "status": {
+              "sealed": "BAAAAAECAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC"
+            },
+            "prefs": {
+              "notify_offline": true,
+              "muted_cameras": []
+            },
+            "alert_prefs": null,
+            "public_key": "BFkat3HrvP1tnLkJTRBlKK3Rpp1EwsH2J_CJ7Fi5xhrfn05qvw0EXAxpOjxorXyXynK-ZN70om_s0mPdmKkngPA",
+            "key_attestation": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+            "key_epoch": 1,
+            "account": null,
+            "person": null
+          },
+          "apple": "refuses",
+          "why": "a role it doesn't know fails the device, and with it whatever lists it: nothing may register a new role until the Apple apps that read it are out"
+        }
+      ]
+    },
+    "plan": {
+      "what": "A home's Plan as the server sends it (docs/API.md, Plans), for what the apps read of the free plan, as the builds with it read them (a build from before it reads no `free`, and has nothing live without a plan)",
+      "how": "`reads.plan` is the plan in force; `free`, whether the home is on the free plan; `live_height`, the tallest picture its cameras send live: the plan's, else the free plan's, else null for no live video at all; `covered_cameras`, the cameras it lets be watched.",
+      "cases": [
+        {
+          "name": "a_plan",
+          "json": {
+            "plan": "premium",
+            "status": "active",
+            "source": "comp",
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": {
+              "cameras": 4,
+              "clip_playback": true,
+              "retention_days": 14,
+              "storage_bytes": 26843545600,
+              "live_height": 1080,
+              "relay_seconds": 36000,
+              "relay_height": 720
+            },
+            "free": null,
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c",
+              "e0000000-0000-4000-8000-00000000000e"
+            ]
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": "premium",
+            "free": false,
+            "live_height": 1080,
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c",
+              "e0000000-0000-4000-8000-00000000000e"
+            ]
+          },
+          "why": "a plan in force (complimentary Premium, which has no end): `free` is null"
+        },
+        {
+          "name": "free",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": {
+              "cameras": 1,
+              "clip_playback": false,
+              "retention_days": 0,
+              "storage_bytes": 0,
+              "live_height": 540,
+              "relay_seconds": 0,
+              "relay_height": 0
+            },
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ]
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": true,
+            "live_height": 540,
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ]
+          },
+          "why": "no plan in force, and the free plan on: the camera that registered first, live at up to 540p"
+        },
+        {
+          "name": "free_after_a_plan",
+          "json": {
+            "plan": null,
+            "status": "expired",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": {
+              "cameras": 1,
+              "clip_playback": false,
+              "retention_days": 0,
+              "storage_bytes": 0,
+              "live_height": 540,
+              "relay_seconds": 0,
+              "relay_height": 0
+            },
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ]
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": true,
+            "live_height": 540,
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ]
+          },
+          "why": "a subscription that ran out leaves the home on the free plan"
+        },
+        {
+          "name": "no_plan",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": null,
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": []
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": false,
+            "live_height": null,
+            "covered_cameras": []
+          },
+          "why": "no plan, and the free plan off: nothing live at all"
+        },
+        {
+          "name": "no_plan_from_a_worker_before_free",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": []
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": false,
+            "live_height": null,
+            "covered_cameras": []
+          },
+          "why": "a Worker from before the free plan leaves `free` out: read as null"
+        },
+        {
+          "name": "free_with_fields_from_later",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": {
+              "cameras": 1,
+              "clip_playback": false,
+              "retention_days": 0,
+              "storage_bytes": 0,
+              "live_height": 540,
+              "relay_seconds": 0,
+              "relay_height": 0,
+              "peek": false
+            },
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ],
+            "offers": []
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": true,
+            "live_height": 540,
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ]
+          },
+          "why": "a field no build knows is left alone, in `free` as anywhere"
+        },
+        {
+          "name": "without_covered_cameras",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": null,
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            }
+          },
+          "apple": "refuses",
+          "why": "`covered_cameras` is required, as `status`, `app_account_token` and `usage` are: without it the whole plan fails to read"
+        },
+        {
+          "name": "capped_to_starter",
+          "json": {
+            "plan": "starter",
+            "status": "active",
+            "source": "comp",
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": {
+              "cameras": 1,
+              "clip_playback": false,
+              "retention_days": 7,
+              "storage_bytes": 10737418240,
+              "live_height": 720,
+              "relay_seconds": 36000,
+              "relay_height": 720
+            },
+            "free": null,
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ],
+            "plan_cap": "starter"
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": "starter",
+            "free": false,
+            "live_height": 720,
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ],
+            "plan_cap": "starter"
+          },
+          "why": "a member capped the home's plan for testing (PUT /v1/household/plan/cap): complimentary Premium held to Starter, read as Starter like any other; `reads.plan_cap` is the cap, and a build from before caps reads the rest the same"
+        },
+        {
+          "name": "capped_to_no_plan",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": {
+              "cameras": 1,
+              "clip_playback": false,
+              "retention_days": 0,
+              "storage_bytes": 0,
+              "live_height": 540,
+              "relay_seconds": 0,
+              "relay_height": 0
+            },
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ],
+            "plan_cap": "none"
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": true,
+            "live_height": 540,
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ],
+            "plan_cap": "none"
+          },
+          "why": "capped to no plan, with the free plan on: read as the free plan, as a home with no plan is"
+        },
+        {
+          "name": "uncapped",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": null,
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": []
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": false,
+            "live_height": null,
+            "covered_cameras": [],
+            "plan_cap": null
+          },
+          "why": "only a capped home's Plan has `plan_cap`: without it, no cap"
+        },
+        {
+          "name": "a_cap_from_later",
+          "json": {
+            "plan": null,
+            "status": "none",
+            "source": null,
+            "expires_at": null,
+            "renews_as": null,
+            "sandbox": false,
+            "app_account_token": "0a0a0a0a-0000-4000-8000-00000000a001",
+            "limits": null,
+            "free": {
+              "cameras": 1,
+              "clip_playback": false,
+              "retention_days": 0,
+              "storage_bytes": 0,
+              "live_height": 540,
+              "relay_seconds": 0,
+              "relay_height": 0
+            },
+            "usage": {
+              "cameras": 2,
+              "storage_bytes": 0,
+              "relay_seconds": 0,
+              "relay_resets_at": 1767312000000
+            },
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ],
+            "plan_cap": "trial"
+          },
+          "apple": "takes",
+          "reads": {
+            "plan": null,
+            "free": true,
+            "live_height": 540,
+            "covered_cameras": [
+              "c0000000-0000-4000-8000-00000000000c"
+            ],
+            "plan_cap": "trial"
+          },
+          "why": "`plan_cap` travels as text, and only the Developer section shows it: a cap it doesn't know reads as itself, and the plan as the rest of it says"
+        }
+      ]
+    },
+    "account": {
+      "what": "An account as GET /v1/me and the sign-ins send it (docs/API.md, Accounts), for what the apps read of an internal tester's mark (a build from before the mark reads none, and shows Settings › Developer to nobody outside a Debug build)",
+      "how": "`reads.internal_tester` is whether the account is marked: only `true` is.",
+      "cases": [
+        {
+          "name": "marked",
+          "json": {
+            "id": "acc00000-0000-4000-8000-0000000000ac",
+            "provider": "apple",
+            "way_id": "a1a00000-0000-4000-8000-0000000000a1",
+            "ways": [
+              {
+                "id": "a1a00000-0000-4000-8000-0000000000a1",
+                "provider": "apple",
+                "created_at": 1767139200000
+              }
+            ],
+            "household_ids": [
+              "11111111-2222-4333-8444-555555555555"
+            ],
+            "device_ids": [
+              "d0000000-0000-4000-8000-00000000000d"
+            ],
+            "created_at": 1767139200000,
+            "internal_tester": true
+          },
+          "apple": "takes",
+          "reads": {
+            "internal_tester": true
+          },
+          "why": "an account marked an internal tester, by hand on the Worker: the Apple apps show it Settings › Developer in TestFlight, never in the App Store app"
+        },
+        {
+          "name": "unmarked",
+          "json": {
+            "id": "acc00000-0000-4000-8000-0000000000ac",
+            "provider": "apple",
+            "way_id": "a1a00000-0000-4000-8000-0000000000a1",
+            "ways": [
+              {
+                "id": "a1a00000-0000-4000-8000-0000000000a1",
+                "provider": "apple",
+                "created_at": 1767139200000
+              }
+            ],
+            "household_ids": [
+              "11111111-2222-4333-8444-555555555555"
+            ],
+            "device_ids": [
+              "d0000000-0000-4000-8000-00000000000d"
+            ],
+            "created_at": 1767139200000
+          },
+          "apple": "takes",
+          "reads": {
+            "internal_tester": false
+          },
+          "why": "every other account: no `internal_tester` at all, as before the mark"
+        },
+        {
+          "name": "a_false_mark",
+          "json": {
+            "id": "acc00000-0000-4000-8000-0000000000ac",
+            "provider": "apple",
+            "way_id": "a1a00000-0000-4000-8000-0000000000a1",
+            "ways": [
+              {
+                "id": "a1a00000-0000-4000-8000-0000000000a1",
+                "provider": "apple",
+                "created_at": 1767139200000
+              }
+            ],
+            "household_ids": [
+              "11111111-2222-4333-8444-555555555555"
+            ],
+            "device_ids": [
+              "d0000000-0000-4000-8000-00000000000d"
+            ],
+            "created_at": 1767139200000,
+            "internal_tester": false
+          },
+          "apple": "takes",
+          "reads": {
+            "internal_tester": false
+          },
+          "why": "`false` is no mark (the Worker sends none)"
+        },
+        {
+          "name": "a_mark_not_true",
+          "json": {
+            "id": "acc00000-0000-4000-8000-0000000000ac",
+            "provider": "apple",
+            "way_id": "a1a00000-0000-4000-8000-0000000000a1",
+            "ways": [
+              {
+                "id": "a1a00000-0000-4000-8000-0000000000a1",
+                "provider": "apple",
+                "created_at": 1767139200000
+              }
+            ],
+            "household_ids": [
+              "11111111-2222-4333-8444-555555555555"
+            ],
+            "device_ids": [
+              "d0000000-0000-4000-8000-00000000000d"
+            ],
+            "created_at": 1767139200000,
+            "internal_tester": 1
+          },
+          "apple": "takes",
+          "reads": {
+            "internal_tester": false
+          },
+          "why": "only `true` is a mark: a number, text or anything else reads as no mark, and the account still reads"
+        },
+        {
+          "name": "without_device_ids",
+          "json": {
+            "id": "acc00000-0000-4000-8000-0000000000ac",
+            "provider": "apple",
+            "way_id": "a1a00000-0000-4000-8000-0000000000a1",
+            "ways": [
+              {
+                "id": "a1a00000-0000-4000-8000-0000000000a1",
+                "provider": "apple",
+                "created_at": 1767139200000
+              }
+            ],
+            "household_ids": [
+              "11111111-2222-4333-8444-555555555555"
+            ],
+            "created_at": 1767139200000
+          },
+          "apple": "refuses",
+          "why": "`device_ids` is required, as `id` and `created_at` are: without it the account fails to read"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,781 @@
+{
+  "version": 1,
+  "about": [
+    "An invite, from its link to the keys it hands over: docs/API.md (Invites). A device in the home makes a random 32-byte token and shares it in a link; the joining device proves it holds the link, both show one six-digit code, and the approving device wraps the home's keys for it.",
+    "The server gets only SHA-256 of the token's text, and the token sealed for the household. From the token come the proof, the code and the approval's MAC, each HMAC under HKDF(token, its name).",
+    "Bytes are base64url without padding unless a field says hex or base64; strings are UTF-8; \"|\" joins the parts of a message, with nothing around it.",
+    "HKDF is HKDF-SHA256 with salt \"petcam\" and 32 bytes out; HMAC is HMAC-SHA256; AES-GCM is AES-256-GCM with a 12-byte nonce and a 16-byte tag.",
+    "Made by server/scripts/vectors.mjs from fixed keys that were made up for these files; nothing here was ever a real home's. No vector is ever removed: a format the apps stop opening stays, as one that must fail. Requests A and B are the ones SharedTests/InviteKeyBindingTests.swift has pinned since 2026-11-10. Read by SharedTests/InviteVectorTests.swift and server/test/vectors.test.ts."
+  ],
+  "household_id": "11111111-2222-4333-8444-555555555555",
+  "home_name": "Home",
+  "epochs": {
+    "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+    "1": "ERERERERERERERERERERERERERERERERERERERERERE"
+  },
+  "holders": {
+    "at_0": {
+      "epochs": [
+        0
+      ],
+      "taken_at": {}
+    },
+    "at_1": {
+      "epochs": [
+        0,
+        1
+      ],
+      "taken_at": {}
+    }
+  },
+  "invite": {
+    "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk",
+    "token_hash": "g80hPkaKL7rbUpYj1pvTaDr7jxOh8KvDFn00a94wNxk",
+    "token_hash_how": "base64url(SHA-256(UTF-8 of the token's base64url text)): what the maker sends as token_hash and the asker as token_check",
+    "made_by": "d0000000-0000-4000-8000-00000000000d",
+    "expires_at": 1762303600000,
+    "sealed_token": {
+      "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+    },
+    "sealed_token_how": "{\"token\": the token's base64url text, \"expires_at\": when it ends by its maker's clock (ms)}, sealed under the current epoch's box key for \"petcam.invite.v1|\" + invite id (sealed-v1.json has the format). It opens only under the current keys."
+  },
+  "links": {
+    "how": "The scheme and host, \"#\", then base64url of the JSON {\"v\": 2, \"h\": household id, \"n\": the home's name, \"i\": invite id, \"t\": the token's base64url text}. Three beginnings read the same: \"https://petcampro.com/join#\", \"petcampro://join#\" and \"petcampro-dev://join#\". Nothing else does. The JSON is read as values (its keys come in no set order).",
+    "reads": [
+      {
+        "link": "https://petcampro.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "made_by": "Release builds since 1.0.1: a Universal Link, which only Pet Cam Pro opens",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "invite_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk"
+      },
+      {
+        "link": "petcampro://join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "made_by": "1.0 (19) and earlier, and still opened; any app can claim the scheme, so nothing makes these now",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "invite_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk"
+      },
+      {
+        "link": "petcampro-dev://join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "made_by": "Debug builds (Pet Cam Pro Dev)",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Home",
+        "invite_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ0IjoiQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRayIsImkiOiJBQUFBQUFBQS1CQkJCLTRDQ0MtOERERC1FRUVFRUVFRUVFRUUiLCJsYXRlciI6WzEsMiwzXSwibiI6Ilpvw6vigJlzIPCfj6EiLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwidiI6Mn0",
+        "made_by": "nobody: its keys in another order, a field no build knows, ids in capitals and a name outside ASCII. Ids read lowercase.",
+        "household_id": "11111111-2222-4333-8444-555555555555",
+        "name": "Zoë’s 🏡",
+        "invite_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "token": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk"
+      }
+    ],
+    "refused": [
+      {
+        "link": "https://example.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "another site's /join"
+      },
+      {
+        "link": "http://petcampro.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "not https"
+      },
+      {
+        "link": "https://www.petcampro.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "another host"
+      },
+      {
+        "link": "https://petcampro.com.example.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "another host that starts the same"
+      },
+      {
+        "link": "https://petcampro.com/settings/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "another path"
+      },
+      {
+        "link": "https://petcampro.com/join?p=eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "in the query, which a browser would send to the site: the payload rides in the fragment only"
+      },
+      {
+        "link": "otherapp://join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "another app's scheme"
+      },
+      {
+        "link": "petcampro://settings#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "the app's scheme, but not a join link"
+      },
+      {
+        "link": "https://petcampro.com/join",
+        "why": "no payload"
+      },
+      {
+        "link": "https://petcampro.com/join#garbage",
+        "why": "not a payload"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ2IjoxLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "version 1"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ2IjozLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "a version no build knows"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiYWFhYWFhYWEtYmJiYi00Y2NjLThkZGQtZWVlZWVlZWVlZWVlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUSJ9",
+        "why": "a token of 31 bytes"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ2IjoyLCJoIjoiaG9tZSIsIm4iOiJIb21lIiwiaSI6ImFhYWFhYWFhLWJiYmItNGNjYy04ZGRkLWVlZWVlZWVlZWVlZSIsInQiOiJDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrIn0",
+        "why": "a household id that isn't a UUID"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJpIjoiaW52aXRlIiwidCI6IkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWsifQ",
+        "why": "an invite id that isn't a UUID"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ2IjoyLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwiaSI6ImFhYWFhYWFhLWJiYmItNGNjYy04ZGRkLWVlZWVlZWVlZWVlZSIsInQiOiJDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrIn0",
+        "why": "no name"
+      },
+      {
+        "link": "https://petcampro.com/join#eyJ2IjoxLCJoIjoiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwibiI6IkhvbWUiLCJzIjoiQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3YyIsImUiOjB9",
+        "why": "a secret link: the home's keys themselves, which only a Debug build on a local Worker makes or takes. It is no invite, and no other build reads it."
+      }
+    ]
+  },
+  "requests": {
+    "how": {
+      "commitment_nonce_alone": "base64url(SHA-256(joiner_nonce)): what every app commits to",
+      "commitment_with_key": "base64url(SHA-256(UTF-8 of \"petcam.invite.commit.v2|\" + public_key + \"|\" + joiner_nonce as base64url)): also taken by members and the server, though no app makes one",
+      "proof": "base64url(HMAC(HKDF(token, \"petcam.invite.proof.v1\"), invite_id|public_key|nonce_commitment))",
+      "member_nonce": "base64url(HMAC(the home's current petcam.invite.nonce.v2 key, invite_id|device_id|public_key|nonce_commitment)): a member's answer (keys-v1.json)",
+      "code": "m = HMAC(HKDF(token, \"petcam.invite.code.v1\"), invite_id|public_key|joiner_nonce as base64url|member_nonce as base64url); its first 4 bytes, big-endian, mod 1000000, as six digits with a space after the third"
+    },
+    "a": {
+      "device_id": "a0000000-0000-4000-8000-000000000001",
+      "public_key": "BMDdTHVbg2-Jywq4gaOrx2W7uo6U5aqYI1GV9aZLgYV4rU_4ielBTsaOTjqH2AXLN2_GzDYBLwPiuRiFCxJWaNM",
+      "joiner_nonce": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+      "commits_to": "with_key",
+      "commitment_nonce_alone": "cs1uhCLEB_ttCYaQ8RMLfe1-wvf14dML2dUh8BU2N5M",
+      "commitment_with_key": "BkERTaFPFj3vffwoOI6ClbxvRoyU3PHbHH8XYWRSH7c",
+      "nonce_commitment": "BkERTaFPFj3vffwoOI6ClbxvRoyU3PHbHH8XYWRSH7c",
+      "proof": "0Yk9clzCO0aY31Cd0aYXwK2YCt0K2l4GT80owundkcs",
+      "member_nonce": "k1mSlWQLON1vvbu1eBckA1FyOzxgxswqlIEEj877QXs",
+      "code": "862 673"
+    },
+    "b": {
+      "device_id": "b0000000-0000-4000-8000-000000000002",
+      "public_key": "BFuu6Su17tHJrkEk85oMGT63asO-PoTm9YTC0vfKLDhtwz5SVtp_agqAvnze699yiQuo2FwRDJ_cJaJysc0ev1Q",
+      "joiner_nonce": "GfCNVA1vg0X2eR2bbo7AJ_aS0-hkZvSwr8v2tAegOEc",
+      "commits_to": "with_key",
+      "commitment_nonce_alone": "A-EFCq8Id32jw-yWN2KRBtgaiGgNFuAliPumjZBn7m0",
+      "commitment_with_key": "rMGXV6epB5EwpAgu8D2wGvq92EcRDotNTM9ZeYqq3TQ",
+      "nonce_commitment": "rMGXV6epB5EwpAgu8D2wGvq92EcRDotNTM9ZeYqq3TQ",
+      "proof": "ULYtpz4kmIn2U1FgGdfmqWyCh0oJYwwDkc_RmH-aZEw",
+      "member_nonce": "BYphQ_ywDZ1_ED-_g0EZrsjpA6gVqk_MCpDkvan4dc8",
+      "code": "862 673"
+    },
+    "c": {
+      "device_id": "90000000-0000-4000-8000-000000000009",
+      "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+      "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+      "commits_to": "nonce_alone",
+      "commitment_nonce_alone": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+      "commitment_with_key": "Kk6Ije4n_t73pnr0T-gPcBXaZCiVAy0tKY6bgr5_BK8",
+      "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+      "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+      "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+      "code": "962 820",
+      "private_key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI"
+    }
+  },
+  "listing": {
+    "how": "An invite as the server lists it (GET /v1/household/invites) to a device holding `holder`'s keys at `now`. A member works each request's code out itself: the invite is open by the end sealed in with its token and by the listing's, the proof holds, the member nonce is this home's own for that device, key and commitment, and the nonce revealed is the one committed to (in either form). It approves only a code no other request on the invite shows.",
+    "two_showing_one_code": {
+      "holder": "at_0",
+      "now": 1762300000000,
+      "invite": {
+        "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "created_by": "d0000000-0000-4000-8000-00000000000d",
+        "created_at": 1762300000000,
+        "expires_at": 1762303600000,
+        "sealed_token": {
+          "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+        },
+        "requests": [
+          {
+            "device_id": "a0000000-0000-4000-8000-000000000001",
+            "platform": "ios",
+            "model": "iPhone18,2",
+            "public_key": "BMDdTHVbg2-Jywq4gaOrx2W7uo6U5aqYI1GV9aZLgYV4rU_4ielBTsaOTjqH2AXLN2_GzDYBLwPiuRiFCxJWaNM",
+            "proof": "0Yk9clzCO0aY31Cd0aYXwK2YCt0K2l4GT80owundkcs",
+            "nonce_commitment": "BkERTaFPFj3vffwoOI6ClbxvRoyU3PHbHH8XYWRSH7c",
+            "member_nonce": "k1mSlWQLON1vvbu1eBckA1FyOzxgxswqlIEEj877QXs",
+            "joiner_nonce": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+            "created_at": 1762300000000
+          },
+          {
+            "device_id": "b0000000-0000-4000-8000-000000000002",
+            "platform": "ios",
+            "model": "iPhone17,1",
+            "public_key": "BFuu6Su17tHJrkEk85oMGT63asO-PoTm9YTC0vfKLDhtwz5SVtp_agqAvnze699yiQuo2FwRDJ_cJaJysc0ev1Q",
+            "proof": "ULYtpz4kmIn2U1FgGdfmqWyCh0oJYwwDkc_RmH-aZEw",
+            "nonce_commitment": "rMGXV6epB5EwpAgu8D2wGvq92EcRDotNTM9ZeYqq3TQ",
+            "member_nonce": "BYphQ_ywDZ1_ED-_g0EZrsjpA6gVqk_MCpDkvan4dc8",
+            "joiner_nonce": "GfCNVA1vg0X2eR2bbo7AJ_aS0-hkZvSwr8v2tAegOEc",
+            "created_at": 1762300000000
+          }
+        ]
+      },
+      "codes": {
+        "a0000000-0000-4000-8000-000000000001": "862 673",
+        "b0000000-0000-4000-8000-000000000002": "862 673"
+      },
+      "approvable": {
+        "a0000000-0000-4000-8000-000000000001": null,
+        "b0000000-0000-4000-8000-000000000002": null
+      },
+      "why": "B's nonce was searched for until its code matched A's. The person comparing can't tell by the code which device is in their hand, so neither is approved until one is turned down."
+    },
+    "one_alone": {
+      "holder": "at_0",
+      "now": 1762300000000,
+      "invite": {
+        "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "created_by": "d0000000-0000-4000-8000-00000000000d",
+        "created_at": 1762300000000,
+        "expires_at": 1762303600000,
+        "sealed_token": {
+          "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+        },
+        "requests": [
+          {
+            "device_id": "a0000000-0000-4000-8000-000000000001",
+            "platform": "ios",
+            "model": "iPhone18,2",
+            "public_key": "BMDdTHVbg2-Jywq4gaOrx2W7uo6U5aqYI1GV9aZLgYV4rU_4ielBTsaOTjqH2AXLN2_GzDYBLwPiuRiFCxJWaNM",
+            "proof": "0Yk9clzCO0aY31Cd0aYXwK2YCt0K2l4GT80owundkcs",
+            "nonce_commitment": "BkERTaFPFj3vffwoOI6ClbxvRoyU3PHbHH8XYWRSH7c",
+            "member_nonce": "k1mSlWQLON1vvbu1eBckA1FyOzxgxswqlIEEj877QXs",
+            "joiner_nonce": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+            "created_at": 1762300000000
+          }
+        ]
+      },
+      "codes": {
+        "a0000000-0000-4000-8000-000000000001": "862 673"
+      },
+      "approvable": {
+        "a0000000-0000-4000-8000-000000000001": "862 673"
+      },
+      "why": "with B turned down, A alone shows the code"
+    },
+    "as_apps_ask": {
+      "holder": "at_0",
+      "now": 1762300000000,
+      "invite": {
+        "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "created_by": "d0000000-0000-4000-8000-00000000000d",
+        "created_at": 1762300000000,
+        "expires_at": 1762303600000,
+        "sealed_token": {
+          "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+        },
+        "requests": [
+          {
+            "device_id": "90000000-0000-4000-8000-000000000009",
+            "platform": "ios",
+            "model": "iPhone18,2",
+            "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+            "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+            "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+            "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+            "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+            "created_at": 1762300000000
+          }
+        ]
+      },
+      "codes": {
+        "90000000-0000-4000-8000-000000000009": "962 820"
+      },
+      "approvable": {
+        "90000000-0000-4000-8000-000000000009": "962 820"
+      },
+      "why": "a request committed to its nonce alone, as every app's is: the answer is what binds its key"
+    },
+    "no_code": [
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "not_from_the_link",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "QEcbNGo-BFZkKfwjzWUJ3zfvH4wfDDFifIswndwEwVM",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+          "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+          "created_at": 1762300000000
+        },
+        "genuine": false,
+        "answered_by_older_app": false,
+        "why": "its proof is made with another token: whoever asked doesn't hold the link",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "QEcbNGo-BFZkKfwjzWUJ3zfvH4wfDDFifIswndwEwVM",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+              "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "key_swapped_after_the_answer",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BFuu6Su17tHJrkEk85oMGT63asO-PoTm9YTC0vfKLDhtwz5SVtp_agqAvnze699yiQuo2FwRDJ_cJaJysc0ev1Q",
+          "proof": "yqpYS6__sf9ndWuiRMEhGd0nMxo4taMqUd0AbI2c51U",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+          "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": true,
+        "why": "listed with another key, proved with the link, and the answer that was given for the first key: this home's answer for the new key is another, so there is no code. The app can't tell it from an answer made by an older app, and says to make a new link.",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BFuu6Su17tHJrkEk85oMGT63asO-PoTm9YTC0vfKLDhtwz5SVtp_agqAvnze699yiQuo2FwRDJ_cJaJysc0ev1Q",
+              "proof": "yqpYS6__sf9ndWuiRMEhGd0nMxo4taMqUd0AbI2c51U",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+              "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "answered_by_an_older_app",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "baXSj8lg-livqdVhesigQEe5-87Jccl46bozEsZsu-0",
+          "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": true,
+        "why": "answered with the nonce 1.0 made (petcam.invite.nonce.v1, the key left out): no code, and the member is told to make a new link on an up-to-date device",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "baXSj8lg-livqdVhesigQEe5-87Jccl46bozEsZsu-0",
+              "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "answer_made_up",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3c",
+          "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": true,
+        "why": "an answer that isn't this home's at all",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3c",
+              "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "another_nonce_revealed",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+          "joiner_nonce": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": false,
+        "why": "the nonce revealed isn't the one committed to",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+              "joiner_nonce": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "not_answered_yet",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": null,
+          "joiner_nonce": null,
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": false,
+        "why": "no member has answered",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": null,
+              "joiner_nonce": null,
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "not_revealed_yet",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+          "joiner_nonce": null,
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": false,
+        "why": "answered, and the asker hasn't revealed its nonce",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+              "joiner_nonce": null,
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762303600001,
+        "name": "past_its_end",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+          "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": false,
+        "why": "the invite is past the end its maker sealed in with the token",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+              "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_0",
+        "now": 1762300000000,
+        "name": "past_the_servers_end",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+          "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+          "created_at": 1762300000000
+        },
+        "genuine": true,
+        "answered_by_older_app": false,
+        "why": "the server's listing ends it sooner than its maker did: the sooner of the two counts",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762299999999,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+              "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      },
+      {
+        "holder": "at_1",
+        "now": 1762300000000,
+        "name": "keys_changed_since",
+        "request": {
+          "device_id": "90000000-0000-4000-8000-000000000009",
+          "platform": "ios",
+          "model": "iPhone18,2",
+          "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+          "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+          "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+          "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+          "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+          "created_at": 1762300000000
+        },
+        "genuine": false,
+        "answered_by_older_app": false,
+        "why": "the home has moved to epoch 1: the token, sealed under epoch 0, no longer opens, so every invite made before is over",
+        "invite": {
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "created_by": "d0000000-0000-4000-8000-00000000000d",
+          "created_at": 1762300000000,
+          "expires_at": 1762303600000,
+          "sealed_token": {
+            "sealed": "BAAAAAC8oJvjl4Dqp6EZRrVWgZD3t52pGA03aO2Cu6Ue9nuK2On9XH1eTBFocsF4wCGIUUeV7QU9a8eslOUOt1AmFcRDLlUmofXwA7rGn6U4OPChOxS-lfS6ry-EqLMuxsUcAzDLlfXgYPENPRtV9A560Q"
+          },
+          "requests": [
+            {
+              "device_id": "90000000-0000-4000-8000-000000000009",
+              "platform": "ios",
+              "model": "iPhone18,2",
+              "public_key": "BNZak5d8qj0bCBhS_1ennkZfFmBXcwS66tUF3TpIWJzzUBheiVNy32Ih6joTdVfkc_3bZ1XwW9UHw8Uz_OnJEoU",
+              "proof": "5BrVY9RQ1T5sDrSmfRB1FI0A636LEfxXcyRUZYYxAIA",
+              "nonce_commitment": "dYd7tB05O1-4RVzmDs2N2gAdBjFklrFN-n-JVlbuyko",
+              "member_nonce": "C5wJY_IjBaHIFWtuFAi83dEJeop1058WhLk5JODudKc",
+              "joiner_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+              "created_at": 1762300000000
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "approval": {
+    "how": {
+      "wrapped": "the home's keyring, every epoch, wrapped for the joining device (keyring-v1.json): here by the script, with the ephemeral key given",
+      "approval_mac": "base64url(HMAC(HKDF(token, \"petcam.invite.approve.v1\"), invite_id|device_id|epoch|approver's public key|wrapped))",
+      "taking": "The joining device takes the keyring the server lists with an approval_mac, only if that MAC holds under its link's token for its own id, the listed epoch, the listed sender and the listed `wrapped`, and the keyring then opens as that sender's, for this device, this household and that epoch."
+    },
+    "approver": {
+      "device_id": "d0000000-0000-4000-8000-00000000000d",
+      "private_key": "ISEhISEhISEhISEhISEhISEhISEhISEhISEhISEhISE",
+      "public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE"
+    },
+    "device": "requests.c",
+    "ephemeral_private_key": "qrsSTCx9v5a8zEzddeqgpp5c7PX_st4U-d5uB0uFnxA",
+    "keyring_aad": "petcam.keyring.v1|11111111-2222-4333-8444-555555555555|90000000-0000-4000-8000-000000000009|0",
+    "keyring_plaintext": "{\"householdID\":\"11111111-2222-4333-8444-555555555555\",\"name\":\"Home\",\"epochs\":[{\"epoch\":0,\"secret\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=\",\"takenAt\":1762296400000}]}",
+    "keyring": {
+      "epoch": 0,
+      "from_device_id": "d0000000-0000-4000-8000-00000000000d",
+      "from_public_key": "BEYtuhrk_BqWi02s8gzdbb4frjSqlxUUpj00BcPRz9ODtYu7CMEzg0KMWFPHHEyFHhNLBWgh5Gj-Cpd6v0MT3eE",
+      "from_attestation": null,
+      "wrapped": "BEFQK5KSwJvdX7s9a64TCH30fHvzvKmHdJQeBO2HBzqhuvVFLj1QQ4Y1ZZqHKcyk_7KaTRPLtDRYNIPXd9cPhAI.ZMZ-auZ4wAOEoeAm39Cy756HzrfLh0EHLQkOTPN51sI7Qz6sS89a4bgxyZJEd1p0r_-6V58p9Y7tnFksjO0SETcmiKQtAqqgKhLIaLkEvSpv1-anHSrEbiyBdHBjBABb4u1IyQbEgU5LsCKx04Ao8OmqkNtqVZVUSop4_WSn6XLdXtabZmyo0JhGPdE_J5GMpi6snDfo92k5os_9BrPTZmv99J0B1tbnTNcruMYTkPBcsmtXmw2n1jqhZQ",
+      "approval_mac": "xIitHpq3-WnnmZkkbk_lQPwCSo3jBKy_qTJPTcLdE0g",
+      "created_at": 1762300000000
+    },
+    "join_token_after": "O3JAG8DDHhzXqG7OUCzk7zBTwAjdY6L0KNZ1_WdcyZQ",
+    "must_refuse": [
+      {
+        "change": {
+          "approval_mac": "DSEZmx3u5KRwsFR5VrswtRWn_MyVKx20CkfReo8Wnac"
+        },
+        "why": "a MAC made with another token: not from someone holding the link"
+      },
+      {
+        "change": {
+          "approval_mac": "o7mBsdynr4zUQP8PV7-Phqm-RL0nfQdkSO-XeF7hAY8"
+        },
+        "why": "a MAC for another device's approval"
+      },
+      {
+        "change": {
+          "approval_mac": "88WLWiuGl4kwyHvzzjF1kaSUP5hL4ETjra99Zghv9sE"
+        },
+        "why": "a MAC for another epoch"
+      },
+      {
+        "change": {
+          "from_public_key": "BF4LiJVUeHUvILUshvfPdqai9l41ApOwm1vEiv4S722IiPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik"
+        },
+        "why": "listed as from another key: the MAC covers the sender"
+      },
+      {
+        "change": {
+          "approval_mac": null
+        },
+        "why": "no MAC at all"
+      }
+    ]
+  }
+}

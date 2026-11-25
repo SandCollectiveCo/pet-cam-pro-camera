@@ -1,0 +1,971 @@
+{
+  "version": 1,
+  "about": [
+    "The realtime socket's frames and the ICE server list, as the Worker sends and takes them: docs/API.md (Realtime: GET /v1/realtime; ICE servers: GET /v1/ice-servers). This is the Worker's own JSON, snake_case, around what the devices seal for each other: a `sealed` value here is a real one, made as sealed-v1.json says, and wire-v1.json has what may be inside.",
+    "`frames_from_server`: text frames an app receives. `apps` says what an app makes of `json`: \"takes\" (it reads), or \"drops\" (it fails to read, and the frame is dropped as if it never came). `reads` is what it reads, with each `sealed` value opened by `signer` as device `as`, at the time `now`: a status as its camera's (null where it doesn't open so), a signal's payload as sent by `from` for `session`. `plan_refusal` is the code where it is one of the home's plan's (docs/API.md, Plans), else null.",
+    "`frames_to_server`: text frames an app sends, here as device `as`. `worker` says what the Worker makes of each: \"takes\", and then `delivers` is the frame the device it's for receives; or \"drops\", without an answer (docs/API.md: a frame the server drops is never answered).",
+    "`ice_servers`: answers to GET /v1/ice-servers. `apps` is \"takes\" or \"refuses\" (the answer fails to read, and the app goes on with STUN alone); `reads` gives each server with null for what it lacks.",
+    "`heartbeat`: the text frame an app sends and the one the Worker answers with, neither of them JSON, and how often docs/API.md asks for one.",
+    "JSON is read as values: key order and how a number is written (1 or 1.0) don't matter, but a number is never text and true is never 1.",
+    "Made by server/scripts/vectors.mjs from fixed keys that were made up for these files; nothing here was ever a real home's. No vector is ever removed: a format the apps stop opening stays, as one that must fail. Read by SharedTests/RealtimeVectorTests.swift (what the Apple apps' own types read: a presence frame's devices, what's sealed inside, the plan's codes, the ICE server list, the heartbeat; `SignalingClient`'s reading of a whole frame is private to it), server/test/vectors.test.ts (the Worker itself: what it takes, drops, delivers and sends) and android/core's RealtimeVectorTest."
+  ],
+  "household_id": "11111111-2222-4333-8444-555555555555",
+  "epochs": {
+    "0": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+    "1": "ERERERERERERERERERERERERERERERERERERERERERE",
+    "2": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+  },
+  "holders": {
+    "at_0": {
+      "epochs": [
+        0
+      ],
+      "taken_at": {
+        "0": 1767139200000
+      }
+    },
+    "at_1": {
+      "epochs": [
+        0,
+        1
+      ],
+      "taken_at": {
+        "0": 1767139200000,
+        "1": 1767222000000
+      }
+    },
+    "at_2": {
+      "epochs": [
+        0,
+        1,
+        2
+      ],
+      "taken_at": {
+        "0": 1767139200000,
+        "1": 1767222000000,
+        "2": 1767225540000
+      }
+    },
+    "only_1": {
+      "epochs": [
+        1
+      ],
+      "taken_at": {
+        "1": 1767222000000
+      }
+    }
+  },
+  "signer": "at_1",
+  "as": "d0000000-0000-4000-8000-00000000000d",
+  "now": 1767225600000,
+  "ids": {
+    "camera": "c0000000-0000-4000-8000-00000000000c",
+    "viewer": "d0000000-0000-4000-8000-00000000000d",
+    "other_device": "e0000000-0000-4000-8000-00000000000e",
+    "session": "5e550000-0000-4000-8000-000000000005"
+  },
+  "heartbeat": {
+    "how": "An app sends the text `ping` and the Worker answers `pong`, without waking the household's object. A client should ping at least every `ping_at_least_every_ms`; a socket that hasn't for `gone_after_ms` is closed with 4002 and counted gone.",
+    "ping": "ping",
+    "pong": "pong",
+    "ping_at_least_every_ms": 25000,
+    "gone_after_ms": 75000
+  },
+  "frames_from_server": {
+    "what": "Frames the Worker sends a device",
+    "cases": [
+      {
+        "name": "presence",
+        "json": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "c0000000-0000-4000-8000-00000000000c",
+              "role": "camera",
+              "online": true,
+              "status": {
+                "sealed": "BAAAAAHQvjWQyoUg4a7VRLVLQaKLNiT7Fs_mgiGaa4CS0X_NjnLZdmskn6A0MLV84WTzqoiOALiRr1GhIW87yBYOK7aGMKNPrHyv-ncmE5-xdqT9vdAnxXUI2w3KdfTaEVb34zgg0k1fWY8JnnVPpasDyayt_2l8mlo7aIRP6jd94vw8aEIq0ysNtq4MMRVmXmZWr3EqYeAPKTVcy3JqZs_v_zOWHBQ3y6ifIBbXXOXTA_bwzD_ba7I9sWOltZH4ptrWqX-syr7dVnewkOVgAhu2_vQw9RpCesTIWQ"
+              }
+            },
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "c0000000-0000-4000-8000-00000000000c",
+              "role": "camera",
+              "online": true,
+              "status": {
+                "battery": 1,
+                "charging": true,
+                "thermal": "nominal",
+                "armed": true,
+                "night_light": false,
+                "viewers": 0,
+                "quality": "auto",
+                "camera_position": "demo",
+                "app_version": "1.0.3 (29)",
+                "sent_at": 1767225600000
+              }
+            },
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "why": "on connect, and whenever a device connects, disconnects or sends a status: every connected device, and nobody else"
+      },
+      {
+        "name": "presence_alone",
+        "json": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "why": "the first device to connect sees only itself: its camera is offline"
+      },
+      {
+        "name": "presence_with_a_role_from_later",
+        "json": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "e0000000-0000-4000-8000-00000000000e",
+              "role": "doorbell",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "e0000000-0000-4000-8000-00000000000e",
+              "role": "doorbell",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "why": "in presence a role travels as text, and a device with one no build knows is connected all the same"
+      },
+      {
+        "name": "presence_with_a_status_moved",
+        "json": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "e0000000-0000-4000-8000-00000000000e",
+              "role": "camera",
+              "online": true,
+              "status": {
+                "sealed": "BAAAAAHQvjWQyoUg4a7VRLVLQaKLNiT7Fs_mgiGaa4CS0X_NjnLZdmskn6A0MLV84WTzqoiOALiRr1GhIW87yBYOK7aGMKNPrHyv-ncmE5-xdqT9vdAnxXUI2w3KdfTaEVb34zgg0k1fWY8JnnVPpasDyayt_2l8mlo7aIRP6jd94vw8aEIq0ysNtq4MMRVmXmZWr3EqYeAPKTVcy3JqZs_v_zOWHBQ3y6ifIBbXXOXTA_bwzD_ba7I9sWOltZH4ptrWqX-syr7dVnewkOVgAhu2_vQw9RpCesTIWQ"
+              }
+            }
+          ]
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "e0000000-0000-4000-8000-00000000000e",
+              "role": "camera",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "why": "a status opens only as its own camera's: the server can't hand one camera's to another"
+      },
+      {
+        "name": "presence_with_fields_from_later",
+        "json": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "online": true,
+              "status": null,
+              "since": 1767225600000,
+              "app": {
+                "build": 30
+              }
+            }
+          ],
+          "as_of": 1767225600000
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "why": "fields no build knows are passed over"
+      },
+      {
+        "name": "presence_without_online",
+        "json": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "status": null
+            }
+          ]
+        },
+        "apps": "drops",
+        "why": "`id` and `online` are required of each device: with one missing the whole frame fails to read"
+      },
+      {
+        "name": "presence_with_a_plain_status",
+        "json": {
+          "type": "presence",
+          "devices": [
+            {
+              "id": "c0000000-0000-4000-8000-00000000000c",
+              "role": "camera",
+              "online": true,
+              "status": {
+                "battery": 1,
+                "charging": true,
+                "thermal": "nominal",
+                "armed": true,
+                "night_light": false,
+                "viewers": 0,
+                "quality": "auto",
+                "camera_position": "demo",
+                "app_version": "1.0.3 (29)",
+                "sent_at": 1767225600000
+              }
+            }
+          ]
+        },
+        "apps": "drops",
+        "why": "a status is {\"sealed\": \"…\"} or null, never the status itself"
+      },
+      {
+        "name": "presence_without_devices",
+        "json": {
+          "type": "presence"
+        },
+        "apps": "drops",
+        "why": "nothing to read"
+      },
+      {
+        "name": "signal",
+        "json": {
+          "type": "signal",
+          "from": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAEvOlwFg88OagVsOhQwrJQxLi3wni6CJRpckKjGyUVkFS0fbE53F7nIK8KEQakM-37Zf8hOjxCcKTNm60csLtWX3b3b8uhh1dQmRKF3HU0jRNudDxOXymgP9qSk0yDhsaJwzodfJZmsHQJL-CmXD0yG1oXuYU6XfmJO3z8ynQBND8mJmtWxAs-cwkhBan9xDNCWZZtGzmybbogX8IIIeBhaZPsCvq9WS886QO50dUKB8Q-TjG0PSyFylVhOAnJvtz8pziLDfeUoBITDVcl0-Azwd1cbLebQqR3qdEiURLC2ElR-qdorQ1Z4V2dCZUxRGKRIgBpi8QWwUTCXx-OiqbT508NgvpFAjgLdqjiuvVjXgHvbJUvMrL1C_vy2sm4YlWAZfu5hl74Dg_zHnUBOplXrazz_nCEBeWJgZvjj3Xw7I8m08xTXxfecPl6-Pk8mKbfT0RYM8IM3pkuFRCPkw-JtQhceNNG6mi20I4az9QqDY9wF4XsWOCbylmI0rHEJrIyN5oq93KjDo4RnMRBth4l88yRr-mqXe6SAuJpzCZhBVYsDlK0D86s"
+          }
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "signal",
+          "from": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "kind": "offer",
+            "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+            "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+            "sent_at": 1767225600000
+          }
+        },
+        "why": "another device's signal, relayed: the server adds who sent it, and can read nothing inside"
+      },
+      {
+        "name": "signal_without_a_payload",
+        "json": {
+          "type": "signal",
+          "from": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005"
+        },
+        "apps": "drops",
+        "why": "`from`, `session` and `payload` are all required"
+      },
+      {
+        "name": "signal_without_a_sender",
+        "json": {
+          "type": "signal",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAEvOlwFg88OagVsOhQwrJQxLi3wni6CJRpckKjGyUVkFS0fbE53F7nIK8KEQakM-37Zf8hOjxCcKTNm60csLtWX3b3b8uhh1dQmRKF3HU0jRNudDxOXymgP9qSk0yDhsaJwzodfJZmsHQJL-CmXD0yG1oXuYU6XfmJO3z8ynQBND8mJmtWxAs-cwkhBan9xDNCWZZtGzmybbogX8IIIeBhaZPsCvq9WS886QO50dUKB8Q-TjG0PSyFylVhOAnJvtz8pziLDfeUoBITDVcl0-Azwd1cbLebQqR3qdEiURLC2ElR-qdorQ1Z4V2dCZUxRGKRIgBpi8QWwUTCXx-OiqbT508NgvpFAjgLdqjiuvVjXgHvbJUvMrL1C_vy2sm4YlWAZfu5hl74Dg_zHnUBOplXrazz_nCEBeWJgZvjj3Xw7I8m08xTXxfecPl6-Pk8mKbfT0RYM8IM3pkuFRCPkw-JtQhceNNG6mi20I4az9QqDY9wF4XsWOCbylmI0rHEJrIyN5oq93KjDo4RnMRBth4l88yRr-mqXe6SAuJpzCZhBVYsDlK0D86s"
+          }
+        },
+        "apps": "drops",
+        "why": "what a signal is bound to starts with who sent it"
+      },
+      {
+        "name": "signal_with_a_plain_payload",
+        "json": {
+          "type": "signal",
+          "from": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "kind": "offer",
+            "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=mid:0\r\na=fingerprint:sha-256 72:2C:BD:52:5F:7D:34:5B:58:87:17:0A:E4:05:5B:DA:E0:4B:31:09:60:46:3C:E5:5B:0B:45:58:57:7A:7D:8B\r\na=setup:actpass\r\n",
+            "sig": "64T3cVeX-q3oFq9qU9tMS2usBjgiCYgUomwzOAYCY7k",
+            "sent_at": 1767225600000
+          }
+        },
+        "apps": "drops",
+        "why": "nothing is accepted unsealed"
+      },
+      {
+        "name": "error_peer_offline",
+        "json": {
+          "type": "error",
+          "code": "peer_offline",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005"
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "error",
+          "code": "peer_offline",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "plan_refusal": null
+        },
+        "why": "the camera a signal was for isn't connected"
+      },
+      {
+        "name": "error_plan_required",
+        "json": {
+          "type": "error",
+          "code": "plan_required",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005"
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "error",
+          "code": "plan_required",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "plan_refusal": "plan_required"
+        },
+        "why": "no plan or trial in force: the signal went nowhere"
+      },
+      {
+        "name": "error_camera_limit",
+        "json": {
+          "type": "error",
+          "code": "camera_limit",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005"
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "error",
+          "code": "camera_limit",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "plan_refusal": "camera_limit"
+        },
+        "why": "the plan doesn't cover this camera"
+      },
+      {
+        "name": "error_camera_update_required",
+        "json": {
+          "type": "error",
+          "code": "camera_update_required",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005"
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "error",
+          "code": "camera_update_required",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "plan_refusal": "camera_update_required"
+        },
+        "why": "on the free plan, its camera runs a build from before it, which would send more than Free's 540p: the app on that camera needs updating. Sent only to a device that asked for Free's live video, which builds from before it never do"
+      },
+      {
+        "name": "error_for_a_command",
+        "json": {
+          "type": "error",
+          "code": "peer_offline",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": null
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "error",
+          "code": "peer_offline",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": null,
+          "plan_refusal": null
+        },
+        "why": "a command has no session"
+      },
+      {
+        "name": "error_with_a_code_from_later",
+        "json": {
+          "type": "error",
+          "code": "camera_asleep",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005"
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "error",
+          "code": "camera_asleep",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "plan_refusal": null
+        },
+        "why": "codes travel as text: one no build knows is no plan refusal, and no reason to say the camera is offline"
+      },
+      {
+        "name": "keys_changed",
+        "json": {
+          "type": "keys_changed",
+          "epoch": 2,
+          "by": "e0000000-0000-4000-8000-00000000000e"
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "keys_changed",
+          "epoch": 2
+        },
+        "why": "the household moved to new keys: fetch the keyring"
+      },
+      {
+        "name": "a_type_from_later",
+        "json": {
+          "type": "wave",
+          "from": "c0000000-0000-4000-8000-00000000000c"
+        },
+        "apps": "takes",
+        "reads": {
+          "type": "wave"
+        },
+        "why": "types travel as text: nothing acts on one it doesn't know"
+      },
+      {
+        "name": "no_type",
+        "json": {
+          "devices": [
+            {
+              "id": "d0000000-0000-4000-8000-00000000000d",
+              "role": "viewer",
+              "online": true,
+              "status": null
+            }
+          ]
+        },
+        "apps": "drops",
+        "why": "`type` is required"
+      },
+      {
+        "name": "not_an_object",
+        "json": [
+          {
+            "type": "presence",
+            "devices": []
+          }
+        ],
+        "apps": "drops",
+        "why": "a frame is one JSON object"
+      }
+    ]
+  },
+  "frames_to_server": {
+    "what": "Frames a device sends the Worker: a signal for another device, and what the Worker does with it",
+    "cases": [
+      {
+        "name": "signal",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "takes",
+        "delivers": {
+          "type": "signal",
+          "from": "d0000000-0000-4000-8000-00000000000d",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "why": "a viewer asks a camera to start a session: the server passes it on with who sent it, and the payload untouched"
+      },
+      {
+        "name": "signal_with_the_longest_session",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0abcd",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "takes",
+        "delivers": {
+          "type": "signal",
+          "from": "d0000000-0000-4000-8000-00000000000d",
+          "session": "A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0A-z_0abcd",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "why": "a session is 1 to 64 of A-Z a-z 0-9 _ and -"
+      },
+      {
+        "name": "signal_with_fields_from_later",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          },
+          "priority": "high"
+        },
+        "worker": "takes",
+        "delivers": {
+          "type": "signal",
+          "from": "d0000000-0000-4000-8000-00000000000d",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "why": "the server passes on only what it knows: who, which session, and the sealed payload"
+      },
+      {
+        "name": "signal_with_a_session_too_long",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "drops",
+        "why": "65 characters"
+      },
+      {
+        "name": "signal_with_an_empty_session",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "drops",
+        "why": "at least one character"
+      },
+      {
+        "name": "signal_with_a_space_in_its_session",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "one two",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "drops",
+        "why": "only A-Z a-z 0-9 _ and -"
+      },
+      {
+        "name": "signal_without_a_session",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "drops",
+        "why": "`session` is required"
+      },
+      {
+        "name": "signal_to_an_uppercase_id",
+        "json": {
+          "type": "signal",
+          "to": "C0000000-0000-4000-8000-00000000000C",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "drops",
+        "why": "ids are lowercase: uppercase is refused rather than folded"
+      },
+      {
+        "name": "signal_to_a_role",
+        "json": {
+          "type": "signal",
+          "to": "role:camera",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+          }
+        },
+        "worker": "drops",
+        "why": "`to` is one device: nothing fans out to every camera"
+      },
+      {
+        "name": "signal_with_a_plain_payload",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "kind": "watch",
+            "audio": true,
+            "quality": "auto",
+            "sent_at": 1767225600000
+          }
+        },
+        "worker": "drops",
+        "why": "plaintext a client let slip is never relayed"
+      },
+      {
+        "name": "signal_with_more_beside_sealed",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g",
+            "kind": "watch"
+          }
+        },
+        "worker": "drops",
+        "why": "a payload is {\"sealed\": \"…\"} and nothing else"
+      },
+      {
+        "name": "signal_with_its_payload_as_text",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": "BAAAAAFwh43nD4l8KaP4uPA_VzH9aG6LZYzPhNZtmb9BJM4Kw-AQ7kjMpRB30iBy6ucaz0q2kD7m1MI9ZlVZLZ3ETC_7hbwnqnblegfifdVi12G_H0Q3su0Xqw6wq8LB6li85nol5g"
+        },
+        "worker": "drops",
+        "why": "the sealed text goes inside an object"
+      },
+      {
+        "name": "signal_with_a_payload_that_isnt_base64url",
+        "json": {
+          "type": "signal",
+          "to": "c0000000-0000-4000-8000-00000000000c",
+          "session": "5e550000-0000-4000-8000-000000000005",
+          "payload": {
+            "sealed": "not base64url!"
+          }
+        },
+        "worker": "drops",
+        "why": "the server checks the shape of what it can't read"
+      },
+      {
+        "name": "a_type_from_later",
+        "json": {
+          "type": "wave",
+          "to": "c0000000-0000-4000-8000-00000000000c"
+        },
+        "worker": "drops",
+        "why": "the server takes only the frames it knows"
+      }
+    ]
+  },
+  "ice_servers": {
+    "what": "GET /v1/ice-servers: the STUN and TURN servers for a call",
+    "cases": [
+      {
+        "name": "stun_only",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": false
+        },
+        "apps": "takes",
+        "reads": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ],
+              "username": null,
+              "credential": null
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": false
+        },
+        "why": "without a TURN key, or with the month's relay hours used up: live video goes direct or not at all"
+      },
+      {
+        "name": "with_a_relay",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            },
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp"
+              ],
+              "username": "user123",
+              "credential": "secret456"
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": true
+        },
+        "apps": "takes",
+        "reads": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ],
+              "username": null,
+              "credential": null
+            },
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp"
+              ],
+              "username": "user123",
+              "credential": "secret456"
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": true
+        },
+        "why": "TURN credentials minted for this device, good for a day"
+      },
+      {
+        "name": "stand_in",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            }
+          ],
+          "expires_at": 1767229800000,
+          "relay": false
+        },
+        "apps": "takes",
+        "reads": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ],
+              "username": null,
+              "credential": null
+            }
+          ],
+          "expires_at": 1767229800000,
+          "relay": false
+        },
+        "why": "Cloudflare couldn't be reached: STUN only, good for 70 minutes, so the apps ask again soon"
+      },
+      {
+        "name": "without_relay",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            }
+          ],
+          "expires_at": 1767312000000
+        },
+        "apps": "takes",
+        "reads": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ],
+              "username": null,
+              "credential": null
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": null
+        },
+        "why": "`relay` is read as optional"
+      },
+      {
+        "name": "fields_from_later",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp"
+              ],
+              "username": "user123",
+              "credential": "secret456",
+              "credential_type": "password"
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": true,
+          "region": "weur"
+        },
+        "apps": "takes",
+        "reads": {
+          "ice_servers": [
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp"
+              ],
+              "username": "user123",
+              "credential": "secret456"
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": true
+        },
+        "why": "fields no build knows are passed over"
+      },
+      {
+        "name": "no_servers",
+        "json": {
+          "ice_servers": [],
+          "expires_at": 1767312000000,
+          "relay": false
+        },
+        "apps": "takes",
+        "reads": {
+          "ice_servers": [],
+          "expires_at": 1767312000000,
+          "relay": false
+        },
+        "why": "an empty list reads: a call then has only the addresses the devices have themselves"
+      },
+      {
+        "name": "without_an_expiry",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            }
+          ],
+          "relay": false
+        },
+        "apps": "refuses",
+        "why": "`expires_at` is required"
+      },
+      {
+        "name": "expiry_as_text",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            }
+          ],
+          "expires_at": "1767312000000",
+          "relay": false
+        },
+        "apps": "refuses",
+        "why": "a number written as text"
+      },
+      {
+        "name": "urls_as_one_text",
+        "json": {
+          "ice_servers": [
+            {
+              "urls": "stun:stun.cloudflare.com:3478"
+            }
+          ],
+          "expires_at": 1767312000000,
+          "relay": false
+        },
+        "apps": "refuses",
+        "why": "`urls` is always a list here, though WebRTC's own form also takes one text: the Worker writes lists"
+      },
+      {
+        "name": "without_servers",
+        "json": {
+          "expires_at": 1767312000000,
+          "relay": false
+        },
+        "apps": "refuses",
+        "why": "`ice_servers` is required"
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+# Publishes the camera page to GitHub Pages, and only a release signed on the
+# release key's Mac: the page is built here from this commit, and published
+# only if the build is exactly what release/release.json lists and one of
+# the keys in release/keys.json signed that list (tools/publish-check.mjs).
+# This workflow holds no key and signs nothing.
+#
+# The page's name (camera.petcampro.com) is the repository's Pages setting,
+# so there is no CNAME file. Every action is pinned to a commit.
+
+name: Publish the camera page
+
+on:
+  push:
+    branches: [main]
+    # The watch's own record never publishes anything.
+    paths-ignore: ['watch/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.10.0
+          package-manager-cache: false
+      - name: The page's tests
+        run: node test/run-node.mjs
+      - name: Built twice, the same bytes, keeping the page's rules
+        run: node tools/verify-build.mjs
+      - name: Build
+        run: node tools/build.mjs dist
+      - name: The build against the signed release
+        run: node tools/publish-check.mjs --dist dist --release release/release.json --keys release/keys.json --live https://camera.petcampro.com/
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,0 +1,7 @@
+{
+  "about": "The camera page's release keys: the public halves of the keys a published release may be signed by, X9.63 uncompressed, base64url, the same list the apps carry. A release is published only if one of them signed it, and no older than oldest.",
+  "keys": [
+    "BNoUtW69R7GodWHc-EnKrYw0LtHlgqvV13eMVJao9jpsEMrVH7wB2aryjqkEu-LhTBhuJF6Ix-GTBL1QFtapvMk"
+  ],
+  "oldest": 1
+}

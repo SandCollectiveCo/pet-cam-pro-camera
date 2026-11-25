@@ -1,0 +1,59 @@
+# The watch on the page's name, from outside Cloudflare, which holds it
+# (tools/watch.mjs), every hour: where four public resolvers say the name
+# points, which certificate GitHub's own servers serve for it, and whether
+# the page's address serves a signed release; and every sixth hour, and on
+# every run by hand, every certificate the public logs hold for it. A swap
+# through Cloudflare needs no new certificate (the zone's wildcard covers
+# the name) and shows only in the resolvers, so they're asked every hour.
+# A run that finds anything that isn't GitHub's, or can't look, fails, and a
+# failed scheduled run mails the person who created this workflow, or who
+# last changed its schedule, or who last enabled it again by hand.
+#
+# It keeps itself going: GitHub stops a public repository's schedules after
+# 60 days without activity, so when the repository has had no commit for 45
+# days the watch commits the date of its last check. Its record of the
+# certificates GitHub has served is committed whenever it grows. It never
+# enables itself through the API: a workflow enabled again sends its mails
+# to whoever enabled it, which here would be nobody. Every action is pinned
+# to a commit, and nothing here holds a key.
+
+name: Watch the page's name
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.10.0
+          package-manager-cache: false
+      - name: Watch
+        run: node tools/watch.mjs --record watch/served.json --keys release/keys.json --summary "$GITHUB_STEP_SUMMARY" ${{ github.event_name == 'schedule' && '--logs-every 6' || '' }}
+      - name: Keep the record, and the repository active
+        if: always()
+        run: |
+          quiet_days=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          if [ "$quiet_days" -ge 45 ]; then
+            mkdir -p watch
+            date -u +%Y-%m-%dT%H:%M:%SZ > watch/last-check
+          fi
+          if [ -n "$(git status --porcelain -- watch)" ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- watch
+            git commit -m "The watch's record of the page's name"
+            git push
+          fi
