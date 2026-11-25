@@ -90,12 +90,16 @@ async function ask(resolver, name, type, fetchFn) {
 /**
  * What one resolver's answers say of the name.
  * @param {string} resolver
- * @param {{ nameA: ReturnType<typeof dnsAnswer>, nameAAAA: ReturnType<typeof dnsAnswer>, hostA: ReturnType<typeof dnsAnswer>, hostAAAA: ReturnType<typeof dnsAnswer> }} answers
+ * `signed` is whether the resolver checked the name's own record with
+ * DNSSEC: the answer to a CNAME question, which is the domain's and signed
+ * with it. The addresses' answers never are, whatever the domain does: they
+ * end in github.io, which isn't signed.
+ * @param {{ nameA: ReturnType<typeof dnsAnswer>, nameAAAA: ReturnType<typeof dnsAnswer>, hostA: ReturnType<typeof dnsAnswer>, hostAAAA: ReturnType<typeof dnsAnswer>, nameCNAME?: ReturnType<typeof dnsAnswer> }} answers
  * @returns {{ resolver: string, outcome: 'absent' | 'github' | 'elsewhere' | 'failed', detail: string, hostAddresses?: string[], signed?: boolean }}
  */
 export function describeAnswers(resolver, answers) {
-    const { nameA, nameAAAA, hostA, hostAAAA } = answers;
-    for (const answer of [nameA, nameAAAA, hostA, hostAAAA]) {
+    const { nameA, nameAAAA, hostA, hostAAAA, nameCNAME } = answers;
+    for (const answer of [nameA, nameAAAA, hostA, hostAAAA, ...(nameCNAME ? [nameCNAME] : [])]) {
         if (answer.rcode !== 0 && answer.rcode !== NXDOMAIN) return { resolver, outcome: 'failed', detail: `it answered with response code ${answer.rcode}` };
     }
     if (nameA.rcode === NXDOMAIN || nameAAAA.rcode === NXDOMAIN) return { resolver, outcome: 'absent', detail: 'no such name' };
@@ -109,16 +113,16 @@ export function describeAnswers(resolver, answers) {
     const foreign = addresses.filter((address) => !host.some((own) => sameBytes(address, own)));
     if (foreign.length > 0) return { resolver, outcome: 'elsewhere', detail: `${foreign.map(addressText).join(', ')}, not one of ${HOST}'s addresses` };
     if (cname === null) return { resolver, outcome: 'elsewhere', detail: `${HOST}'s addresses with no CNAME to it: not the record the page's name is` };
-    return { resolver, outcome: 'github', detail: `a CNAME to ${HOST}, ${addresses.map(addressText).join(', ')}`, hostAddresses: host.map(addressText), signed: nameA.authenticated };
+    return { resolver, outcome: 'github', detail: `a CNAME to ${HOST}, ${addresses.map(addressText).join(', ')}`, hostAddresses: host.map(addressText), signed: (nameCNAME ?? nameA).authenticated };
 }
 
 /** @param {{ name: string, url: string }} resolver @param {typeof fetch} [fetchFn] */
 export async function whereItPoints(resolver, fetchFn = fetch) {
     try {
-        const [nameA, nameAAAA, hostA, hostAAAA] = await Promise.all([
-            ask(resolver, PAGE_NAME, TYPE.A, fetchFn), ask(resolver, PAGE_NAME, TYPE.AAAA, fetchFn), ask(resolver, HOST, TYPE.A, fetchFn), ask(resolver, HOST, TYPE.AAAA, fetchFn),
+        const [nameA, nameAAAA, hostA, hostAAAA, nameCNAME] = await Promise.all([
+            ask(resolver, PAGE_NAME, TYPE.A, fetchFn), ask(resolver, PAGE_NAME, TYPE.AAAA, fetchFn), ask(resolver, HOST, TYPE.A, fetchFn), ask(resolver, HOST, TYPE.AAAA, fetchFn), ask(resolver, PAGE_NAME, TYPE.CNAME, fetchFn),
         ]);
-        return describeAnswers(resolver.name, { nameA, nameAAAA, hostA, hostAAAA });
+        return describeAnswers(resolver.name, { nameA, nameAAAA, hostA, hostAAAA, nameCNAME });
     } catch (error) {
         return { resolver: resolver.name, outcome: /** @type {const} */ ('failed'), detail: `no answer: ${error?.message ?? error}` };
     }
@@ -324,7 +328,9 @@ export function judge(found) {
     if (answered.length === 0) say('unknown', 'No resolver answered: where the name points is unknown.');
     else if (here.length === answered.length) say('ok', `All ${here.length} resolvers that answered say the name is a CNAME to ${HOST}, at its addresses.`);
     else if (here.length > 0 && found.dns.some((d) => d.outcome === 'absent')) say('note', 'Some resolvers have the name and some don’t yet: a new record takes up to half an hour to reach them all.');
-    if (here.length > 0 && here.every((d) => !d.signed)) say('note', 'The name’s answers aren’t signed: DNSSEC isn’t on for the domain yet.');
+    const checked = here.filter((d) => d.signed).length;
+    if (here.length > 0 && checked === 0) say('note', 'The name’s record isn’t signed, or no resolver checked it: DNSSEC isn’t holding for it.');
+    else if (checked > 0) say('ok', `The name’s record is signed: DNSSEC holds for it at ${checked === here.length ? `all ${checked} resolvers` : `${checked} of ${here.length} resolvers (the rest don’t check)`}. GitHub’s own addresses aren’t signed: github.io isn’t.`);
     const absentEverywhere = answered.length > 0 && answered.every((d) => d.outcome === 'absent');
 
     // What GitHub serves for it.

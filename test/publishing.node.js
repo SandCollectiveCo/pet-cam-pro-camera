@@ -264,7 +264,12 @@ test('asks one name and type as DNS over HTTPS carries it, and reads the answer,
     assert.equal(addressText(Uint8Array.from([0x20, 0x01, 0x0d, 0xb8, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6])), '2001:db8:1:2:3:4:5:6');
 });
 
-/** One resolver's four answers, from a few facts. */
+/**
+ * One resolver's five answers, from a few facts. As the real ones are: the
+ * name's own record (the CNAME question's answer) carries the domain's
+ * signature, and the addresses' answers never do, since they end in
+ * github.io, which isn't signed.
+ */
 function answers({ name = 'github', signed = true } = {}) {
     const host = { rcode: 0, authenticated: false, truncated: false, answers: [{ name: HOST, type: TYPE.A, ttl: 60, address: Uint8Array.from([185, 199, 108, 153]) }, { name: HOST, type: TYPE.A, ttl: 60, address: Uint8Array.from([185, 199, 109, 153]) }] };
     const hostAAAA = { rcode: 0, authenticated: false, truncated: false, answers: [] };
@@ -275,14 +280,17 @@ function answers({ name = 'github', signed = true } = {}) {
         bare: [{ name: PAGE_NAME, type: TYPE.A, ttl: 60, address: Uint8Array.from([185, 199, 108, 153]) }],
         sideways: [{ name: PAGE_NAME, type: TYPE.CNAME, ttl: 60, target: HOST }, { name: HOST, type: TYPE.A, ttl: 60, address: Uint8Array.from([198, 51, 100, 9]) }],
     }[name];
-    if (name === 'absent') return { nameA: { rcode: NXDOMAIN, authenticated: false, truncated: false, answers: [] }, nameAAAA: { rcode: NXDOMAIN, authenticated: false, truncated: false, answers: [] }, hostA: host, hostAAAA };
-    if (name === 'servfail') return { nameA: { rcode: 2, authenticated: false, truncated: false, answers: [] }, nameAAAA: { rcode: 2, authenticated: false, truncated: false, answers: [] }, hostA: host, hostAAAA };
-    return { nameA: { rcode: 0, authenticated: signed, truncated: false, answers: nameAnswers }, nameAAAA: { rcode: 0, authenticated: signed, truncated: false, answers: [] }, hostA: host, hostAAAA };
+    if (name === 'absent') return { nameA: { rcode: NXDOMAIN, authenticated: false, truncated: false, answers: [] }, nameAAAA: { rcode: NXDOMAIN, authenticated: false, truncated: false, answers: [] }, hostA: host, hostAAAA, nameCNAME: { rcode: NXDOMAIN, authenticated: signed, truncated: false, answers: [] } };
+    if (name === 'servfail') return { nameA: { rcode: 2, authenticated: false, truncated: false, answers: [] }, nameAAAA: { rcode: 2, authenticated: false, truncated: false, answers: [] }, hostA: host, hostAAAA, nameCNAME: { rcode: 2, authenticated: false, truncated: false, answers: [] } };
+    const own = nameAnswers.filter((record) => record.type === TYPE.CNAME && record.name === PAGE_NAME);
+    return { nameA: { rcode: 0, authenticated: false, truncated: false, answers: nameAnswers }, nameAAAA: { rcode: 0, authenticated: false, truncated: false, answers: [] }, hostA: host, hostAAAA, nameCNAME: { rcode: 0, authenticated: signed, truncated: false, answers: own } };
 }
 
 test('says where one resolver says the name points: absent, GitHub’s, or anywhere else', () => {
     const said = (name) => describeAnswers('R', answers({ name }));
     assert.equal([said('absent').outcome, said('github').outcome, said('servfail').outcome], ['absent', 'github', 'failed']);
+    // Signed is the name's own record's, never the addresses' (github.io isn't signed): the watch said
+    // "DNSSEC isn't on" of a signed domain until it asked for the CNAME itself.
     assert.equal([said('github').signed, describeAnswers('R', answers({ signed: false })).signed], [true, false]);
     assert.equal(said('github').hostAddresses, ['185.199.108.153', '185.199.109.153']);
     // A CNAME elsewhere; the record proxied through Cloudflare (its addresses, no CNAME); GitHub's addresses with no CNAME; a CNAME to GitHub at an address that isn't its.
@@ -322,8 +330,13 @@ test('passes the name as it should be, and records the certificate GitHub serves
     // Already recorded: nothing new.
     const again = judged({ record: result.record });
     assert.equal([again.verdict, again.recorded], ['ok', false]);
-    // Answers that aren't signed are said: DNSSEC isn't on yet.
-    assert.ok(judged({ dns: resolvers('github', { signed: false }) }).findings.some((f) => /DNSSEC/.test(f.text)));
+    // The name's record signed, at the resolvers that check DNSSEC (OpenDNS doesn't): a pass, saying how many.
+    const checkedAt = (result) => result.findings.filter((f) => /DNSSEC/.test(f.text)).map((f) => [f.level, (/at (all \d+|\d+ of \d+) resolvers/.exec(f.text) ?? [])[1] ?? null]);
+    assert.equal(checkedAt(judged()), [['ok', 'all 4']]);
+    assert.equal(checkedAt(judged({ dns: [...resolvers('github').slice(0, 3), ...resolvers('github', { signed: false }).slice(3)] })), [['ok', '3 of 4']]);
+    // Not signed, or checked by none: said, not an alarm.
+    const unsigned = judged({ dns: resolvers('github', { signed: false }) });
+    assert.equal([checkedAt(unsigned), unsigned.verdict], [[['note', null]], 'ok']);
     // Some resolvers have a new record and some don't yet: said, not an alarm.
     const settling = judged({ dns: [...resolvers('github').slice(0, 2), ...resolvers('absent').slice(2)] });
     assert.equal([settling.verdict, alarms(settling)], ['ok', []]);
