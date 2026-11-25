@@ -1,0 +1,18 @@
+{
+  "about": "Every certificate GitHub’s servers have been seen serving for the page’s name, by tools/watch.mjs. A certificate logged for the name that isn’t here, and that GitHub doesn’t serve within a day, is an alarm.",
+  "name": "camera.petcampro.com",
+  "served": [
+    {
+      "sha256": "09b4fb71fdb9ade6400feb03ca6d790c90647fcfec06446eff4c812aa15ab587",
+      "spkiSha256": "0d073b9b73b4b0ee16e3f580e521c7b6c7aa20a48a764a758e1b31dff5043d90",
+      "serial": "6215efad2b28c9afc364d6d59f36a891f18",
+      "issuer": "C=US, O=Let's Encrypt, CN=YR2",
+      "notBefore": "2026-11-25T15:56:05.000Z",
+      "notAfter": "2027-02-23T15:56:04.000Z",
+      "names": [
+        "camera.petcampro.com"
+      ],
+      "firstSeen": "2026-11-25T16:56:05.350Z"
+    }
+  ]
+}
